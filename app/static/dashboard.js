@@ -70,13 +70,14 @@ function bars(id, rows, key, formatter) {
 }
 
 function table(rows) {
-  document.querySelector("#usage-table").innerHTML = rows.length ? rows.map(row => `<tr><td>${dateLabel(row.bucket_start)}</td><td>${escapeHtml(row.project_id || "—")}</td><td>${escapeHtml(row.model || "—")}</td><td>${escapeHtml(row.api_key_id || "—")}</td><td>${row.batch < 0 ? "—" : row.batch ? "Yes" : "No"}</td><td>${integer.format(row.num_model_requests)}</td><td>${integer.format(row.input_tokens)}</td><td>${integer.format(row.output_tokens)}</td><td>${integer.format(row.input_cached_tokens)}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">データがありません</td></tr>';
+  document.querySelector("#usage-table").innerHTML = rows.length ? rows.map(row => `<tr><td>${dateLabel(row.bucket_start)}</td><td title="${escapeHtml(row.project_id)}">${escapeHtml(row.project_name || "—")}</td><td>${escapeHtml(row.model || "—")}</td><td title="${escapeHtml(row.api_key_id)}">${escapeHtml(row.api_key_name || "—")}</td><td>${row.batch < 0 ? "—" : row.batch ? "Yes" : "No"}</td><td>${integer.format(row.num_model_requests)}</td><td>${integer.format(row.input_tokens)}</td><td>${integer.format(row.output_tokens)}</td><td>${integer.format(row.input_cached_tokens)}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">データがありません</td></tr>';
 }
 
 function options(name, values) {
   const select = form.elements[name], selected = select.value;
-  select.innerHTML = '<option value="">すべて</option>' + values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
-  select.value = values.includes(selected) ? selected : "";
+  const entries = values.map(value => typeof value === "string" ? { value, label: value } : value);
+  select.innerHTML = '<option value="">すべて</option>' + entries.map(entry => `<option value="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</option>`).join("");
+  select.value = entries.some(entry => entry.value === selected) ? selected : "";
 }
 
 function syncStatus(data) {
@@ -97,4 +98,3 @@ document.querySelector("#sync-button").addEventListener("click", async () => {
   else { showMessage("同期を開始しました。"); setTimeout(loadDashboard, 1200); }
 });
 loadDashboard();
-

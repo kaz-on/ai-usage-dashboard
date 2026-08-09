@@ -5,7 +5,7 @@ OpenAI OrganizationのCosts APIとCompletions Usage APIを閲覧する、LAN内�
 ## 主な機能
 
 - 日別のコスト、リクエスト、Input/Output/Cached tokens
-- Project、Model、API Keyによる絞り込み
+- Project名、Model、API Key名による絞り込み
 - モデル別トークン量、プロジェクト別コスト
 - CompletionsとCostsのCSV出力
 - 1時間ごとの自動同期と手動同期
@@ -16,6 +16,8 @@ Costs APIはモデル単位のコストを返さないため、モデル別コ�
 
 - [Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs)
 - [Completions Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/completions)
+- [List projects API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/list)
+- [List project API keys](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/api_keys/methods/list)
 
 ## デモモードで起動
 
@@ -116,4 +118,3 @@ node --check app/static/dashboard.js
 ```
 
 テストではモックHTTPレスポンスと決定的なデモデータを使用し、OpenAI APIへ通信しません。
-

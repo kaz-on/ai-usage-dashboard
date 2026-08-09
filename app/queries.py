@@ -18,6 +18,8 @@ class DashboardFilters:
 def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[str, Any]:
     usage_where, usage_params = _where(filters, include_model=True)
     cost_where, cost_params = _where(filters, include_model=False)
+    usage_join_where, usage_join_params = _where(filters, include_model=True, alias="u")
+    cost_join_where, cost_join_params = _where(filters, include_model=False, alias="c")
     with database.connect() as connection:
         usage = dict(
             connection.execute(
@@ -72,20 +74,31 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         )
         projects = _rows(
             connection.execute(
-                f"""SELECT COALESCE(NULLIF(project_id, ''), '未分類') AS label,
-                    currency, printf('%.8f', SUM(CAST(amount AS REAL))) AS amount
-                FROM costs WHERE {cost_where}
-                GROUP BY project_id, currency ORDER BY CAST(amount AS REAL) DESC LIMIT 12""",  # noqa: S608
-                cost_params,
+                f"""SELECT
+                    COALESCE(NULLIF(p.name, ''), NULLIF(c.project_id, ''), '未分類') AS label,
+                    c.project_id, c.currency,
+                    printf('%.8f', SUM(CAST(c.amount AS REAL))) AS amount
+                FROM costs c LEFT JOIN projects p ON p.id = c.project_id
+                WHERE {cost_join_where}
+                GROUP BY c.project_id, p.name, c.currency
+                ORDER BY CAST(amount AS REAL) DESC LIMIT 12""",  # noqa: S608
+                cost_join_params,
             ).fetchall()
         )
         recent_usage = _rows(
             connection.execute(
-                f"""SELECT bucket_start, project_id, model, api_key_id, batch, service_tier,
-                    num_model_requests, input_tokens, output_tokens, input_cached_tokens
-                FROM completion_usage WHERE {usage_where}
-                ORDER BY bucket_start DESC, num_model_requests DESC LIMIT 100""",  # noqa: S608
-                usage_params,
+                f"""SELECT u.bucket_start, u.project_id,
+                    COALESCE(NULLIF(p.name, ''), NULLIF(u.project_id, ''), '未分類') project_name,
+                    u.model, u.api_key_id,
+                    COALESCE(NULLIF(k.name, ''), NULLIF(u.api_key_id, ''), '未分類') api_key_name,
+                    u.batch, u.service_tier, u.num_model_requests,
+                    u.input_tokens, u.output_tokens, u.input_cached_tokens
+                FROM completion_usage u
+                LEFT JOIN projects p ON p.id = u.project_id
+                LEFT JOIN project_api_keys k ON k.id = u.api_key_id
+                WHERE {usage_join_where}
+                ORDER BY u.bucket_start DESC, u.num_model_requests DESC LIMIT 100""",  # noqa: S608
+                usage_join_params,
             ).fetchall()
         )
         sync_status = _rows(
@@ -116,22 +129,39 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
     }
 
 
-def get_filter_options(database: Database) -> dict[str, list[str]]:
+def get_filter_options(database: Database) -> dict[str, list[Any]]:
     with database.connect() as connection:
         projects = connection.execute(
-            """SELECT project_id FROM completion_usage WHERE project_id != ''
-            UNION SELECT project_id FROM costs WHERE project_id != '' ORDER BY project_id"""
+            """WITH ids(id) AS (
+                SELECT project_id FROM completion_usage WHERE project_id != ''
+                UNION SELECT project_id FROM costs WHERE project_id != ''
+            )
+            SELECT ids.id AS value, COALESCE(NULLIF(p.name, ''), ids.id) AS label
+            FROM ids LEFT JOIN projects p ON p.id = ids.id
+            ORDER BY label, value"""
         ).fetchall()
         api_keys = connection.execute(
-            """SELECT api_key_id FROM completion_usage WHERE api_key_id != ''
-            UNION SELECT api_key_id FROM costs WHERE api_key_id != '' ORDER BY api_key_id"""
+            """WITH ids(id) AS (
+                SELECT api_key_id FROM completion_usage WHERE api_key_id != ''
+                UNION SELECT api_key_id FROM costs WHERE api_key_id != ''
+            )
+            SELECT ids.id AS value,
+                CASE
+                    WHEN k.name IS NULL OR k.name = '' THEN ids.id
+                    WHEN p.name IS NOT NULL AND p.name != '' THEN k.name || ' — ' || p.name
+                    ELSE k.name
+                END AS label
+            FROM ids
+            LEFT JOIN project_api_keys k ON k.id = ids.id
+            LEFT JOIN projects p ON p.id = k.project_id
+            ORDER BY label, value"""
         ).fetchall()
         models = connection.execute(
             "SELECT DISTINCT model FROM completion_usage WHERE model != '' ORDER BY model"
         ).fetchall()
     return {
-        "projects": [row[0] for row in projects],
-        "api_keys": [row[0] for row in api_keys],
+        "projects": _rows(projects),
+        "api_keys": _rows(api_keys),
         "models": [row[0] for row in models],
     }
 
@@ -140,13 +170,15 @@ def csv_rows(
     database: Database, kind: str, filters: DashboardFilters
 ) -> tuple[list[str], list[dict]]:
     if kind == "completions":
-        where, params = _where(filters, include_model=True)
+        where, params = _where(filters, include_model=True, alias="u")
         columns = [
             "bucket_start",
             "bucket_end",
             "project_id",
+            "project_name",
             "user_id",
             "api_key_id",
+            "api_key_name",
             "model",
             "batch",
             "service_tier",
@@ -157,40 +189,62 @@ def csv_rows(
             "input_uncached_tokens",
             "input_cache_write_tokens",
         ]
-        table = "completion_usage"
+        select = """u.bucket_start, u.bucket_end, u.project_id,
+            COALESCE(NULLIF(p.name, ''), u.project_id) AS project_name,
+            u.user_id, u.api_key_id,
+            COALESCE(NULLIF(k.name, ''), u.api_key_id) AS api_key_name,
+            u.model, u.batch, u.service_tier, u.num_model_requests,
+            u.input_tokens, u.output_tokens, u.input_cached_tokens,
+            u.input_uncached_tokens, u.input_cache_write_tokens"""
+        source = """completion_usage u
+            LEFT JOIN projects p ON p.id = u.project_id
+            LEFT JOIN project_api_keys k ON k.id = u.api_key_id"""
+        order_column = "u.bucket_start"
     elif kind == "costs":
-        where, params = _where(filters, include_model=False)
+        where, params = _where(filters, include_model=False, alias="c")
         columns = [
             "bucket_start",
             "bucket_end",
             "project_id",
+            "project_name",
             "api_key_id",
+            "api_key_name",
             "line_item",
             "currency",
             "amount",
             "quantity",
         ]
-        table = "costs"
+        select = """c.bucket_start, c.bucket_end, c.project_id,
+            COALESCE(NULLIF(p.name, ''), c.project_id) AS project_name,
+            c.api_key_id, COALESCE(NULLIF(k.name, ''), c.api_key_id) AS api_key_name,
+            c.line_item, c.currency, c.amount, c.quantity"""
+        source = """costs c
+            LEFT JOIN projects p ON p.id = c.project_id
+            LEFT JOIN project_api_keys k ON k.id = c.api_key_id"""
+        order_column = "c.bucket_start"
     else:
         raise ValueError(f"Unknown CSV kind: {kind}")
     with database.connect() as connection:
         rows = connection.execute(
-            f"SELECT {', '.join(columns)} FROM {table} "  # noqa: S608
-            f"WHERE {where} ORDER BY bucket_start DESC",
+            f"SELECT {select} FROM {source} "  # noqa: S608
+            f"WHERE {where} ORDER BY {order_column} DESC",
             params,
         ).fetchall()
     return columns, _rows(rows)
 
 
-def _where(filters: DashboardFilters, *, include_model: bool) -> tuple[str, list[Any]]:
-    clauses = ["bucket_start >= ?", "bucket_start < ?"]
+def _where(
+    filters: DashboardFilters, *, include_model: bool, alias: str = ""
+) -> tuple[str, list[Any]]:
+    prefix = f"{alias}." if alias else ""
+    clauses = [f"{prefix}bucket_start >= ?", f"{prefix}bucket_start < ?"]
     params: list[Any] = [filters.start_time, filters.end_time]
     for column, value in (("project_id", filters.project_id), ("api_key_id", filters.api_key_id)):
         if value:
-            clauses.append(f"{column} = ?")
+            clauses.append(f"{prefix}{column} = ?")
             params.append(value)
     if include_model and filters.model:
-        clauses.append("model = ?")
+        clauses.append(f"{prefix}model = ?")
         params.append(filters.model)
     return " AND ".join(clauses), params
 
