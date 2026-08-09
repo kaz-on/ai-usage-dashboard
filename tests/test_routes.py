@@ -43,3 +43,12 @@ async def test_invalid_date_range(tmp_path):
         response = await client.get("/api/dashboard?from=2025-02-01&to=2025-01-01")
 
     assert response.status_code == 422
+
+
+async def test_csv_export(tmp_path):
+    async with client_for(tmp_path) as client:
+        response = await client.get("/api/export/completions.csv?from=2025-01-01&to=2025-01-31")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.text.startswith("bucket_start,bucket_end,project_id")

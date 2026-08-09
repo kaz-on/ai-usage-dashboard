@@ -1,0 +1,31 @@
+services:
+  dashboard:
+    build: .
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${DASHBOARD_BIND_ADDRESS:-0.0.0.0}:${DASHBOARD_PORT:-8080}:8080"
+    environment:
+      OPENAI_ADMIN_KEY: "${OPENAI_ADMIN_KEY:-}"
+      MOCK_MODE: "${MOCK_MODE:-false}"
+      DATABASE_PATH: /data/dashboard.db
+      TZ: "${TZ:-Asia/Tokyo}"
+      SYNC_INTERVAL_MINUTES: "${SYNC_INTERVAL_MINUTES:-60}"
+      INITIAL_HISTORY_DAYS: "${INITIAL_HISTORY_DAYS:-90}"
+      SYNC_LOOKBACK_DAYS: "${SYNC_LOOKBACK_DAYS:-3}"
+    volumes:
+      - dashboard-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  dashboard-data:
+

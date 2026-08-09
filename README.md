@@ -1,0 +1,119 @@
+# OpenAI Usage Dashboard
+
+OpenAI OrganizationのCosts APIとCompletions Usage APIを閲覧する、LAN内向けの軽量ダッシュボードです。単一のFastAPIコンテナに画面、定期同期、SQLiteをまとめています。
+
+## 主な機能
+
+- 日別のコスト、リクエスト、Input/Output/Cached tokens
+- Project、Model、API Keyによる絞り込み
+- モデル別トークン量、プロジェクト別コスト
+- CompletionsとCostsのCSV出力
+- 1時間ごとの自動同期と手動同期
+- SQLiteによる永続化
+- APIキー不要のデモモード
+
+Costs APIはモデル単位のコストを返さないため、モデル別コストの推計表示は行いません。仕様はOpenAIの公式ドキュメントに合わせています。
+
+- [Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs)
+- [Completions Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/completions)
+
+## デモモードで起動
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+ブラウザで `http://<サーバーのIP>:8080` を開きます。`.env.example`は`MOCK_MODE=true`なので、実際のAPIキーがなくてもデモデータが自動生成されます。
+
+状態確認：
+
+```bash
+docker compose ps
+docker compose logs -f dashboard
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+`docker compose down -v`はSQLiteを保存したボリュームも削除するため、データを残したい場合は`-v`を付けないでください。
+
+## 実際のOpenAIデータを使用
+
+Organization Admin API Keyを用意し、`.env`を次のように変更します。
+
+```dotenv
+OPENAI_ADMIN_KEY=sk-admin-...
+MOCK_MODE=false
+```
+
+反映します。
+
+```bash
+docker compose up -d --build
+```
+
+キーはブラウザへ送信されず、ダッシュボードコンテナからOpenAI APIを呼ぶためだけに使用されます。`.env`はGitの管理対象外です。
+
+初回は`INITIAL_HISTORY_DAYS`の日数を取得します。データ取得後は、`SYNC_INTERVAL_MINUTES`ごとに直近`SYNC_LOOKBACK_DAYS`日を再取得します。
+
+## LAN内の特定IPで待ち受ける
+
+サーバーのLAN側IPが`192.168.10.20`の場合、`.env`を変更します。
+
+```dotenv
+DASHBOARD_BIND_ADDRESS=192.168.10.20
+DASHBOARD_PORT=8080
+```
+
+OSのファイアウォールでも必要なサブネットだけにTCP 8080を許可してください。ユーザー認証とHTTPSは実装していないため、インターネットへ直接公開しないでください。
+
+## 設定値
+
+| 環境変数 | デフォルト | 説明 |
+| --- | --- | --- |
+| `OPENAI_ADMIN_KEY` | 空 | Organization Admin API Key |
+| `MOCK_MODE` | `false` | デモデータを生成する |
+| `DASHBOARD_BIND_ADDRESS` | `0.0.0.0` | Dockerが公開するホスト側IP |
+| `DASHBOARD_PORT` | `8080` | ホスト側ポート |
+| `TZ` | `Asia/Tokyo` | スケジューラーのタイムゾーン |
+| `SYNC_INTERVAL_MINUTES` | `60` | 自動同期間隔 |
+| `INITIAL_HISTORY_DAYS` | `90` | 初回取得日数 |
+| `SYNC_LOOKBACK_DAYS` | `3` | 定期同期で再取得する日数 |
+
+## データ保存とバックアップ
+
+SQLiteはComposeの`dashboard-data`ボリュームに保存されます。簡易バックアップは次のように取得できます。
+
+```bash
+docker compose exec dashboard python -c \
+  "import sqlite3; src=sqlite3.connect('/data/dashboard.db'); dst=sqlite3.connect('/data/backup.db'); src.backup(dst); dst.close(); src.close()"
+docker compose cp dashboard:/data/backup.db ./dashboard-backup.db
+```
+
+復元時はコンテナを停止してからSQLiteファイルを差し替えてください。
+
+## ローカル開発
+
+Python 3.12以上を使用します。
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+MOCK_MODE=true DATABASE_PATH=./data/dashboard.db \
+  .venv/bin/uvicorn app.main:app --reload
+```
+
+テストと静的チェック：
+
+```bash
+.venv/bin/pytest -q
+.venv/bin/ruff check .
+node --check app/static/dashboard.js
+```
+
+テストではモックHTTPレスポンスと決定的なデモデータを使用し、OpenAI APIへ通信しません。
+

@@ -6,7 +6,7 @@ import io
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.queries import DashboardFilters, csv_rows, get_dashboard_data, get_filter_options
@@ -67,8 +67,8 @@ async def export_csv(
     writer = csv.DictWriter(output, fieldnames=columns)
     writer.writeheader()
     writer.writerows(rows)
-    return StreamingResponse(
-        iter([output.getvalue()]),
+    return Response(
+        content=output.getvalue(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{kind}.csv"'},
     )
