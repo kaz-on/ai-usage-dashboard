@@ -1,6 +1,8 @@
+import time
+
 from app.database import Database
 from app.mock_client import MockUsageClient
-from app.sync import SyncService
+from app.sync import SyncService, default_sync_range
 
 
 async def test_sync_replaces_same_range_without_duplicates(tmp_path):
@@ -17,3 +19,15 @@ async def test_sync_replaces_same_range_without_duplicates(tmp_path):
         assert connection.execute("SELECT count(*) FROM costs").fetchone()[0] == 4
         statuses = connection.execute("SELECT status FROM sync_runs").fetchall()
     assert {row["status"] for row in statuses} == {"success"}
+
+
+async def test_default_range_shortens_only_after_both_endpoints_succeed(tmp_path):
+    database = Database(tmp_path / "dashboard.db")
+    database.initialize()
+
+    initial_start, _ = default_sync_range(database, history_days=90, lookback_days=3)
+    assert 89 * 86_400 < time.time() - initial_start < 91 * 86_400
+
+    await SyncService(database, MockUsageClient()).sync(1_735_689_600, 1_735_776_000)
+    incremental_start, _ = default_sync_range(database, history_days=90, lookback_days=3)
+    assert 2 * 86_400 < time.time() - incremental_start < 4 * 86_400

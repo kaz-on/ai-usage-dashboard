@@ -107,8 +107,11 @@ def default_sync_range(
     now = datetime.now(UTC)
     end = int(now.timestamp())
     with database.connect() as connection:
-        has_data = connection.execute("SELECT EXISTS(SELECT 1 FROM completion_usage)").fetchone()[0]
-    days = lookback_days if has_data else history_days
+        completed_endpoints = connection.execute(
+            """SELECT COUNT(DISTINCT endpoint) FROM sync_runs
+            WHERE status = 'success' AND endpoint IN ('completions', 'costs')"""
+        ).fetchone()[0]
+    days = lookback_days if completed_endpoints == 2 else history_days
     start = int((now - timedelta(days=days)).timestamp())
     return start, end
 
