@@ -4,7 +4,8 @@ OpenAI OrganizationのCosts APIとCompletions Usage APIを閲覧する、LAN内�
 
 ## 主な機能
 
-- 日別のコスト、リクエスト、Input/Output/Cached tokens
+- プロジェクト別の積み上げコストと総額（日・週・月を期間に応じて自動集約）
+- リクエスト推移とCached/Uncached Input、Output tokens
 - Project名、Model、API Key名による絞り込み
 - モデル別トークン量、プロジェクト別コスト
 - CompletionsとCostsのCSV出力
@@ -118,3 +119,7 @@ node --check app/static/dashboard.js
 ```
 
 テストではモックHTTPレスポンスと決定的なデモデータを使用し、OpenAI APIへ通信しません。
+
+## フロントエンドライブラリ
+
+時系列チャートには[Chart.js 4.5.1](https://www.chartjs.org/)を使用しています。LAN内で外部通信なしに表示できるよう、配布ファイルを`app/static`に同梱しています。Chart.jsはMIT Licenseで提供され、ライセンス本文は`app/static/CHARTJS-LICENSE.md`に収録しています。

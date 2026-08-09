@@ -39,14 +39,15 @@ input, select { width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--te
 .chart-panel, .breakdown-grid .panel, .table-panel { padding: 18px; }
 .chart-panel.wide { grid-column: span 2; }
 .section-heading { min-height: 42px; display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.chart { height: 235px; position: relative; }
-.chart svg { width: 100%; height: 100%; overflow: visible; }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .area { fill: rgba(53, 212, 154, .08); }
-.chart .line { fill: none; stroke: var(--green); stroke-width: 2.3; vector-effect: non-scaling-stroke; }
-.chart .line.blue { stroke: var(--blue); }
-.chart .line.amber { stroke: var(--amber); }
-.chart text { fill: var(--muted); font-size: 10px; }
+.section-note { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.currency-control { min-width: 78px; }
+.currency-control select { margin-top: 2px; padding: 6px 28px 6px 8px; }
+.chart-notice { margin: 3px 0 4px; padding: 6px 9px; color: var(--amber); background: #261f12; border-radius: 6px; font-size: 11px; }
+.chart { height: 270px; position: relative; }
+.chart canvas:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+.dashboard-data { transition: opacity .18s ease; }
+.is-loading .dashboard-data { opacity: .5; pointer-events: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .empty { height: 100%; display: grid; place-items: center; color: var(--muted); }
 .bars { display: grid; gap: 13px; min-height: 180px; }
 .bar-row { display: grid; grid-template-columns: minmax(100px, 1.5fr) 4fr auto; gap: 10px; align-items: center; }
@@ -69,5 +70,9 @@ footer { display: flex; justify-content: space-between; gap: 24px; padding: 18px
   .chart-panel.wide { grid-column: auto; }
   .topbar { padding: 0 18px; }
   main { padding: 18px; }
+  .chart { height: 300px; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-data { transition: none; }
+}

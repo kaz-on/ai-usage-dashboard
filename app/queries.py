@@ -99,7 +99,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
                 FROM costs c LEFT JOIN projects p ON p.id = c.project_id
                 WHERE {cost_join_where}
                 GROUP BY c.project_id, p.name, c.currency
-                ORDER BY CAST(amount AS REAL) DESC LIMIT 12""",  # noqa: S608
+                ORDER BY CAST(amount AS REAL) DESC""",  # noqa: S608
                 cost_join_params,
             ).fetchall()
         )

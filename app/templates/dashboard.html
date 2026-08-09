@@ -21,19 +21,19 @@
     </div>
   </header>
 
-  <main>
+  <main id="dashboard" aria-busy="true">
     <form id="filters" class="panel filters">
       <label>開始日<input type="date" name="from" value="{{ default_from }}"></label>
       <label>終了日<input type="date" name="to" value="{{ default_to }}"></label>
       <label>Project<select name="project_id"><option value="">すべて</option></select></label>
       <label>Model<select name="model"><option value="">すべて</option></select></label>
       <label>API Key<select name="api_key_id"><option value="">すべて</option></select></label>
-      <button class="button" type="submit">更新</button>
+      <button id="filter-submit" class="button" type="submit">更新</button>
     </form>
 
     <p id="message" class="message" hidden></p>
 
-    <section class="cards" aria-label="サマリー">
+    <section class="cards dashboard-data" aria-label="サマリー">
       <article class="metric"><span>Cost</span><strong id="cost-total">—</strong><small>期間内の実績額</small></article>
       <article class="metric"><span>Requests</span><strong id="requests-total">—</strong><small>モデルリクエスト</small></article>
       <article class="metric"><span>Input tokens</span><strong id="input-total">—</strong><small>キャッシュ等を含む</small></article>
@@ -41,22 +41,30 @@
       <article class="metric"><span>Cache rate</span><strong id="cache-rate">—</strong><small>cached / input</small></article>
     </section>
 
-    <section class="chart-grid">
+    <section class="chart-grid dashboard-data">
       <article class="panel chart-panel">
-        <div class="section-heading"><div><p class="eyebrow">SPEND</p><h2>日別コスト</h2></div><span id="cost-currency"></span></div>
-        <div id="cost-chart" class="chart"></div>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SPEND</p>
+            <h2>プロジェクト別コスト推移</h2>
+            <p id="cost-chart-detail" class="section-note">上位8件＋その他</p>
+          </div>
+          <label class="currency-control">通貨<select id="cost-currency" aria-label="表示通貨"></select></label>
+        </div>
+        <p id="cost-filter-note" class="chart-notice" hidden>Modelフィルターはコストに適用されません</p>
+        <div id="cost-chart" class="chart" aria-live="polite"></div>
       </article>
       <article class="panel chart-panel">
         <div class="section-heading"><div><p class="eyebrow">TRAFFIC</p><h2>リクエスト推移</h2></div></div>
         <div id="request-chart" class="chart"></div>
       </article>
       <article class="panel chart-panel wide">
-        <div class="section-heading"><div><p class="eyebrow">TOKENS</p><h2>Input / Output / Cached</h2></div></div>
+        <div class="section-heading"><div><p class="eyebrow">TOKENS</p><h2>トークン内訳</h2><p class="section-note">Input = Cached + Uncached / Output</p></div></div>
         <div id="token-chart" class="chart"></div>
       </article>
     </section>
 
-    <section class="breakdown-grid">
+    <section class="breakdown-grid dashboard-data">
       <article class="panel">
         <div class="section-heading"><div><p class="eyebrow">USAGE</p><h2>モデル別トークン</h2></div></div>
         <div id="model-breakdown" class="bars"></div>
@@ -67,7 +75,7 @@
       </article>
     </section>
 
-    <section class="panel table-panel">
+    <section class="panel table-panel dashboard-data">
       <div class="section-heading">
         <div><p class="eyebrow">DETAILS</p><h2>Completions集計</h2></div>
         <div class="export-actions">
@@ -88,7 +96,7 @@
       <p id="sync-detail"></p>
     </footer>
   </main>
+  <script src="{{ url_for('static', path='/chart.umd.min.js') }}" defer></script>
   <script src="{{ url_for('static', path='/dashboard.js') }}" defer></script>
 </body>
 </html>
-
