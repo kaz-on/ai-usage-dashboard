@@ -111,8 +111,7 @@ function configureCurrencies(data) {
 
 function renderCostViews(data) {
   const rows = data.project_cost_series.filter(row => row.currency === selectedCurrency);
-  const activeProjects = activeCostProjectKeys(rows);
-  const projectCount = activeProjects.size;
+  const projectCount = new Set(rows.map(row => row.project_id || "__unclassified__")).size;
   const detail = document.querySelector("#cost-chart-detail");
   detail.textContent = projectCount > 8
     ? `${granularityLabels[data.series_granularity]}・上位8件＋その他`
@@ -123,9 +122,7 @@ function renderCostViews(data) {
   costChart(rows, selectedCurrency, data.series_granularity);
   bars(
     "project-breakdown",
-    data.project_costs
-      .filter(row => row.currency === selectedCurrency && Math.abs(Number(row.amount)) > 1e-8)
-      .slice(0, 12),
+    data.project_costs.filter(row => row.currency === selectedCurrency).slice(0, 12),
     "amount",
     value => formatCurrency(value, selectedCurrency),
   );
@@ -133,6 +130,7 @@ function renderCostViews(data) {
 
 function costChart(rows, currency, granularity) {
   if (!rows.length) { emptyChart("cost-chart"); return; }
+  const timestamps = [...new Set(rows.map(row => row.bucket_start))].sort((a, b) => a - b);
   const totals = new Map();
   const names = new Map();
   rows.forEach(row => {
@@ -140,16 +138,10 @@ function costChart(rows, currency, granularity) {
     totals.set(key, (totals.get(key) || 0) + Number(row.amount));
     names.set(key, row.project_name);
   });
-  const ranked = [...totals]
-    .filter(([, total]) => Math.abs(total) > 1e-8)
-    .sort((a, b) => b[1] - a[1]);
-  if (!ranked.length) { emptyChart("cost-chart"); return; }
-  const activeKeys = new Set(ranked.map(([key]) => key));
-  const activeRows = rows.filter(row => activeKeys.has(row.project_id || "__unclassified__"));
-  const timestamps = [...new Set(activeRows.map(row => row.bucket_start))].sort((a, b) => a - b);
+  const ranked = [...totals].sort((a, b) => b[1] - a[1]);
   const visible = new Set(ranked.slice(0, 8).map(([key]) => key));
   const values = new Map();
-  activeRows.forEach(row => {
+  rows.forEach(row => {
     const projectKey = row.project_id || "__unclassified__";
     const key = visible.has(projectKey) ? projectKey : "__other__";
     const pointKey = `${key}:${row.bucket_start}`;
@@ -340,15 +332,6 @@ function addKeyboardNavigation(chart, canvas, labels, describe) {
     else index = Math.max(0, Math.min(labels.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)));
     activate();
   });
-}
-
-function activeCostProjectKeys(rows) {
-  const totals = new Map();
-  rows.forEach(row => {
-    const key = row.project_id || "__unclassified__";
-    totals.set(key, (totals.get(key) || 0) + Number(row.amount));
-  });
-  return new Set([...totals].filter(([, total]) => Math.abs(total) > 1e-8).map(([key]) => key));
 }
 
 function projectColors(projectIds) {
