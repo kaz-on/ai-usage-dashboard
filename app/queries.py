@@ -55,6 +55,21 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
                 usage_params,
             ).fetchall()
         )
+        project_request_series = _rows(
+            connection.execute(
+                f"""SELECT {bucket_expression.replace('bucket_start', 'u.bucket_start')}
+                        AS bucket_start,
+                    u.project_id,
+                    COALESCE(NULLIF(p.name, ''), NULLIF(u.project_id, ''), '未分類')
+                        AS project_name,
+                    SUM(u.num_model_requests) AS requests
+                FROM completion_usage u LEFT JOIN projects p ON p.id = u.project_id
+                WHERE {usage_join_where}
+                GROUP BY 1, u.project_id, p.name
+                ORDER BY 1, u.project_id""",  # noqa: S608
+                usage_join_params,
+            ).fetchall()
+        )
         cost_series = _rows(
             connection.execute(
                 f"""SELECT {bucket_expression} AS bucket_start, currency,
@@ -138,6 +153,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
     return {
         "summary": {"usage": usage, "costs": costs},
         "usage_series": usage_series,
+        "project_request_series": project_request_series,
         "cost_series": cost_series,
         "project_cost_series": project_cost_series,
         "series_granularity": granularity,

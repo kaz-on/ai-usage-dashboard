@@ -19,7 +19,12 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
     assert len(data["usage_series"]) == 2
     assert data["series_granularity"] == "day"
     assert len(data["project_cost_series"]) == 4
+    assert len(data["project_request_series"]) == 4
     assert {row["project_name"] for row in data["project_cost_series"]} == {
+        "Customer Product",
+        "Internal Tools",
+    }
+    assert {row["project_name"] for row in data["project_request_series"]} == {
         "Customer Product",
         "Internal Tools",
     }
