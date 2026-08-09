@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS completion_usage (
     user_id TEXT NOT NULL DEFAULT '',
     api_key_id TEXT NOT NULL DEFAULT '',
     model TEXT NOT NULL DEFAULT '',
-    batch INTEGER,
+    batch INTEGER NOT NULL DEFAULT -1,
     service_tier TEXT NOT NULL DEFAULT '',
     num_model_requests INTEGER NOT NULL DEFAULT 0,
     input_tokens INTEGER NOT NULL DEFAULT 0,
@@ -100,4 +100,3 @@ class Database:
             raise
         finally:
             connection.close()
-

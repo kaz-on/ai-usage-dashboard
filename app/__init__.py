@@ -1,2 +1,1 @@
 """OpenAI usage dashboard application."""
-

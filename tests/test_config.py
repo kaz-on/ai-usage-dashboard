@@ -21,4 +21,3 @@ def test_settings_defaults(monkeypatch):
     assert settings.sync_interval_minutes == 60
     assert settings.initial_history_days == 90
     assert settings.sync_enabled is False
-
