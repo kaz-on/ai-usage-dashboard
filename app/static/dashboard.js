@@ -89,6 +89,9 @@ function render(data) {
   document.querySelector("#usage-csv").href = `/api/export/completions.csv?${params()}`;
   document.querySelector("#cost-csv").href = `/api/export/costs.csv?${params()}`;
   document.querySelector("#cost-filter-note").hidden = !data.model_cost_unavailable;
+  const costCardNote = document.querySelector("#cost-card-note");
+  costCardNote.textContent = data.model_cost_unavailable ? "Modelフィルター対象外" : "期間内の実績額";
+  costCardNote.classList.toggle("filter-excluded", data.model_cost_unavailable);
 }
 
 function configureCurrencies(data) {
@@ -104,8 +107,14 @@ function configureCurrencies(data) {
 
 function renderCostViews(data) {
   const rows = data.project_cost_series.filter(row => row.currency === selectedCurrency);
+  const projectCount = new Set(rows.map(row => row.project_id || "__unclassified__")).size;
   const detail = document.querySelector("#cost-chart-detail");
-  detail.textContent = `${granularityLabels[data.series_granularity]}・上位8件＋その他`;
+  detail.textContent = projectCount > 8
+    ? `${granularityLabels[data.series_granularity]}・上位8件＋その他`
+    : `${granularityLabels[data.series_granularity]}・${projectCount}プロジェクト`;
+  const selectedTotal = data.summary.costs.find(row => row.currency === selectedCurrency);
+  document.querySelector("#cost-chart-total").textContent = selectedTotal
+    ? formatCurrency(selectedTotal.amount, selectedCurrency) : "—";
   costChart(rows, selectedCurrency, data.series_granularity);
   bars(
     "project-breakdown",

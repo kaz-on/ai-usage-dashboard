@@ -34,7 +34,7 @@
     <p id="message" class="message" hidden></p>
 
     <section class="cards dashboard-data" aria-label="サマリー">
-      <article class="metric"><span>Cost</span><strong id="cost-total">—</strong><small>期間内の実績額</small></article>
+      <article class="metric"><span>Cost</span><strong id="cost-total">—</strong><small id="cost-card-note">期間内の実績額</small></article>
       <article class="metric"><span>Requests</span><strong id="requests-total">—</strong><small>モデルリクエスト</small></article>
       <article class="metric"><span>Input tokens</span><strong id="input-total">—</strong><small>キャッシュ等を含む</small></article>
       <article class="metric"><span>Output tokens</span><strong id="output-total">—</strong><small>全モダリティ</small></article>
@@ -49,7 +49,10 @@
             <h2>プロジェクト別コスト推移</h2>
             <p id="cost-chart-detail" class="section-note">上位8件＋その他</p>
           </div>
-          <label class="currency-control">通貨<select id="cost-currency" aria-label="表示通貨"></select></label>
+          <div class="cost-controls">
+            <strong id="cost-chart-total">—</strong>
+            <label class="currency-control">通貨<select id="cost-currency" aria-label="表示通貨"></select></label>
+          </div>
         </div>
         <p id="cost-filter-note" class="chart-notice" hidden>Modelフィルターはコストに適用されません</p>
         <div id="cost-chart" class="chart" aria-live="polite"></div>
