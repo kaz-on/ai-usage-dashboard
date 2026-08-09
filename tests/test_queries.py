@@ -28,6 +28,9 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
         "Customer Product",
         "Internal Tools",
     }
+    assert sum(row["requests"] for row in data["project_request_series"]) == data[
+        "summary"
+    ]["usage"]["requests"]
     assert all("uncached_tokens" in row for row in data["usage_series"])
     assert {row["label"] for row in data["project_costs"]} == {
         "Customer Product",

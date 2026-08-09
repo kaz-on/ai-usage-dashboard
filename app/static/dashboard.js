@@ -73,13 +73,9 @@ function render(data) {
 
   configureCurrencies(data);
   renderCostViews(data);
-  lineChart("request-chart", data.usage_series, [{ key: "requests", label: "Requests", color: "#5da8ff" }], {
-    ariaLabel: "期間内のリクエスト数の推移",
-    granularity: data.series_granularity,
-    formatter: value => integer.format(value),
-  });
+  projectRequestChart(data.project_request_series, data.series_granularity);
   inputTokenChart(data.usage_series, data.series_granularity);
-  lineChart("output-token-chart", data.usage_series, [{ key: "output_tokens", label: "Output", color: "#5da8ff" }], {
+  barChart("output-token-chart", data.usage_series, { key: "output_tokens", label: "Output", color: "#5da8ff" }, {
     ariaLabel: "Outputトークン数の推移",
     granularity: data.series_granularity,
     formatter: value => integer.format(value),
@@ -120,36 +116,16 @@ function renderCostViews(data) {
   document.querySelector("#cost-chart-total").textContent = selectedTotal
     ? formatCurrency(selectedTotal.amount, selectedCurrency) : "—";
   costChart(rows, selectedCurrency, data.series_granularity);
-  bars(
-    "project-breakdown",
+  costShareBars(
     data.project_costs.filter(row => row.currency === selectedCurrency).slice(0, 12),
-    "amount",
-    value => formatCurrency(value, selectedCurrency),
+    selectedCurrency,
+    Number(selectedTotal?.amount || 0),
   );
 }
 
 function costChart(rows, currency, granularity) {
   if (!rows.length) { emptyChart("cost-chart"); return; }
-  const timestamps = [...new Set(rows.map(row => row.bucket_start))].sort((a, b) => a - b);
-  const totals = new Map();
-  const names = new Map();
-  rows.forEach(row => {
-    const key = row.project_id || "__unclassified__";
-    totals.set(key, (totals.get(key) || 0) + Number(row.amount));
-    names.set(key, row.project_name);
-  });
-  const ranked = [...totals].sort((a, b) => b[1] - a[1]);
-  const visible = new Set(ranked.slice(0, 8).map(([key]) => key));
-  const values = new Map();
-  rows.forEach(row => {
-    const projectKey = row.project_id || "__unclassified__";
-    const key = visible.has(projectKey) ? projectKey : "__other__";
-    const pointKey = `${key}:${row.bucket_start}`;
-    values.set(pointKey, (values.get(pointKey) || 0) + Number(row.amount));
-  });
-  const keys = ranked.slice(0, 8).map(([key]) => key);
-  if (ranked.length > 8) keys.push("__other__");
-  const colors = projectColors(keys.filter(key => key !== "__other__"));
+  const { timestamps, keys, names, values, colors } = groupProjectRows(rows, "amount");
   const datasets = keys.map(key => ({
     label: key === "__other__" ? "その他" : names.get(key),
     data: timestamps.map(timestamp => values.get(`${key}:${timestamp}`) || 0),
@@ -208,24 +184,86 @@ function costChart(rows, currency, granularity) {
   });
 }
 
-function lineChart(id, rows, series, settings) {
+function projectRequestChart(rows, granularity) {
+  if (!rows.length) { emptyChart("request-chart"); return; }
+  const { timestamps, keys, names, values, colors, ranked } = groupProjectRows(rows, "requests");
+  const detail = document.querySelector("#request-chart-detail");
+  detail.textContent = ranked.length > 8
+    ? `${granularityLabels[granularity]}・上位8件＋その他`
+    : `${granularityLabels[granularity]}・${ranked.length}プロジェクト`;
+  const datasets = keys.map(key => ({
+    label: key === "__other__" ? "その他" : names.get(key),
+    data: timestamps.map(timestamp => values.get(`${key}:${timestamp}`) || 0),
+    backgroundColor: key === "__other__" ? "#65717d" : colors.get(key),
+    borderWidth: 0,
+    borderRadius: 2,
+    stack: "requests",
+  }));
+  const labels = timestamps.map(timestamp => dateLabel(timestamp, granularity));
+  const fullLabels = timestamps.map(timestamp => fullDateLabel(timestamp, granularity));
+  const canvas = chartCanvas("request-chart", `プロジェクト別リクエスト推移、${granularityLabels[granularity]}`);
+  const chart = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets },
+    options: {
+      ...baseChartOptions(),
+      interaction: { mode: "index", intersect: false },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 9 } },
+        y: { stacked: true, beginAtZero: true, ticks: { callback: value => number.format(value) } },
+      },
+      plugins: {
+        legend: {
+          position: "bottom",
+          onClick: () => {},
+          labels: {
+            usePointStyle: true,
+            boxWidth: 8,
+            generateLabels(chartInstance) {
+              return Chart.defaults.plugins.legend.labels.generateLabels(chartInstance).map(item => {
+                const total = chartInstance.data.datasets[item.datasetIndex].data.reduce((sum, value) => sum + value, 0);
+                return { ...item, text: `${item.text} — ${integer.format(total)}` };
+              });
+            },
+          },
+        },
+        tooltip: {
+          callbacks: {
+            title: items => fullLabels[items[0].dataIndex],
+            label(context) {
+              const total = context.chart.data.datasets.reduce((sum, dataset) => sum + Number(dataset.data[context.dataIndex] || 0), 0);
+              const percent = total ? ` (${(context.parsed.y / total * 100).toFixed(1)}%)` : "";
+              return `${context.dataset.label}: ${integer.format(context.parsed.y)}${percent}`;
+            },
+            footer: items => `合計: ${integer.format(items.reduce((sum, item) => sum + item.parsed.y, 0))}`,
+          },
+        },
+      },
+    },
+  });
+  registerChart("request-chart", chart);
+  addKeyboardNavigation(chart, canvas, fullLabels, index => {
+    const parts = datasets.map(dataset => `${dataset.label} ${integer.format(dataset.data[index])}`);
+    const total = datasets.reduce((sum, dataset) => sum + dataset.data[index], 0);
+    return `${fullLabels[index]}、合計 ${integer.format(total)}、${parts.join("、")}`;
+  });
+}
+
+function barChart(id, rows, series, settings) {
   if (!rows.length) { emptyChart(id); return; }
   const labels = rows.map(row => dateLabel(row.bucket_start, settings.granularity));
   const fullLabels = rows.map(row => fullDateLabel(row.bucket_start, settings.granularity));
-  const datasets = series.map(item => ({
-    label: item.label,
-    data: rows.map(row => Number(row[item.key] || 0)),
-    borderColor: item.color,
-    backgroundColor: item.color,
-    borderWidth: 2.3,
-    pointRadius: 0,
-    pointHoverRadius: 4,
-    tension: 0.25,
-  }));
+  const dataset = {
+    label: series.label,
+    data: rows.map(row => Number(row[series.key] || 0)),
+    backgroundColor: series.color,
+    borderWidth: 0,
+    borderRadius: 2,
+  };
   const canvas = chartCanvas(id, settings.ariaLabel);
   const chart = new Chart(canvas, {
-    type: "line",
-    data: { labels, datasets },
+    type: "bar",
+    data: { labels, datasets: [dataset] },
     options: {
       ...baseChartOptions(),
       interaction: { mode: "index", intersect: false },
@@ -234,13 +272,13 @@ function lineChart(id, rows, series, settings) {
         y: { beginAtZero: true, ticks: { callback: value => number.format(value) } },
       },
       plugins: {
-        legend: { display: series.length > 1, position: "bottom", labels: { usePointStyle: true, boxWidth: 8 } },
+        legend: { display: false },
         tooltip: { callbacks: { title: items => fullLabels[items[0].dataIndex], label: context => `${context.dataset.label}: ${settings.formatter(context.parsed.y)}` } },
       },
     },
   });
   registerChart(id, chart);
-  addKeyboardNavigation(chart, canvas, fullLabels, index => `${fullLabels[index]}、${datasets.map(dataset => `${dataset.label} ${settings.formatter(dataset.data[index])}`).join("、")}`);
+  addKeyboardNavigation(chart, canvas, fullLabels, index => `${fullLabels[index]}、${dataset.label} ${settings.formatter(dataset.data[index])}`);
 }
 
 function inputTokenChart(rows, granularity) {
@@ -334,6 +372,36 @@ function addKeyboardNavigation(chart, canvas, labels, describe) {
   });
 }
 
+function groupProjectRows(rows, valueKey) {
+  const timestamps = [...new Set(rows.map(row => row.bucket_start))].sort((a, b) => a - b);
+  const totals = new Map();
+  const names = new Map();
+  rows.forEach(row => {
+    const key = row.project_id || "__unclassified__";
+    totals.set(key, (totals.get(key) || 0) + Number(row[valueKey]));
+    names.set(key, row.project_name);
+  });
+  const ranked = [...totals].sort((a, b) => b[1] - a[1]);
+  const visible = new Set(ranked.slice(0, 8).map(([key]) => key));
+  const values = new Map();
+  rows.forEach(row => {
+    const projectKey = row.project_id || "__unclassified__";
+    const key = visible.has(projectKey) ? projectKey : "__other__";
+    const pointKey = `${key}:${row.bucket_start}`;
+    values.set(pointKey, (values.get(pointKey) || 0) + Number(row[valueKey]));
+  });
+  const keys = ranked.slice(0, 8).map(([key]) => key);
+  if (ranked.length > 8) keys.push("__other__");
+  return {
+    timestamps,
+    keys,
+    names,
+    values,
+    ranked,
+    colors: projectColors(keys.filter(key => key !== "__other__")),
+  };
+}
+
 function projectColors(projectIds) {
   const colors = new Map();
   const usedHues = [];
@@ -359,6 +427,17 @@ function bars(id, rows, key, formatter) {
   if (!rows.length) { node.innerHTML = '<div class="empty">データがありません</div>'; return; }
   const max = Math.max(...rows.map(row => Number(row[key])), 1);
   node.innerHTML = rows.map(row => `<div class="bar-row"><span class="bar-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${Number(row[key]) / max * 100}%"></div></div><span class="bar-value">${formatter(row[key])}</span></div>`).join("");
+}
+
+function costShareBars(rows, currency, total) {
+  const node = document.getElementById("project-breakdown");
+  if (!rows.length || !total) { node.innerHTML = '<div class="empty">データがありません</div>'; return; }
+  node.innerHTML = rows.map(row => {
+    const amount = Number(row.amount);
+    const share = amount / total * 100;
+    const width = Math.max(0, Math.min(100, share));
+    return `<div class="bar-row"><span class="bar-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><span class="bar-value share-value"><span>${escapeHtml(formatCurrency(amount, currency))}</span><small>${share.toFixed(1)}%</small></span></div>`;
+  }).join("");
 }
 
 function table(rows) {

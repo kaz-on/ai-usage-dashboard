@@ -58,6 +58,8 @@ input, select { width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--te
 .bar-track { height: 7px; overflow: hidden; background: var(--panel-2); border-radius: 999px; }
 .bar-fill { height: 100%; background: var(--green); border-radius: inherit; }
 .bar-value { color: var(--muted); font-variant-numeric: tabular-nums; }
+.share-value { display: grid; justify-items: end; line-height: 1.25; }
+.share-value small { color: var(--text); font-size: 11px; }
 .table-panel { margin-top: 12px; }
 .table-wrap { overflow: auto; max-height: 480px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }

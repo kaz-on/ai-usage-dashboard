@@ -5,7 +5,9 @@ OpenAI OrganizationのCosts APIとCompletions Usage APIを閲覧する、LAN内�
 ## 主な機能
 
 - プロジェクト別の積み上げコストと総額（日・週・月を期間に応じて自動集約）
-- リクエスト推移とCached/Uncached Input、Output tokens
+- プロジェクト別の積み上げリクエスト推移
+- Cached/Uncached InputとOutput tokensの独立チャート
+- 期間合計に対するプロジェクト別コスト割合
 - Project名、Model、API Key名による絞り込み
 - モデル別トークン量、プロジェクト別コスト
 - CompletionsとCostsのCSV出力
