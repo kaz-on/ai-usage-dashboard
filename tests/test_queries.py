@@ -17,6 +17,13 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
     assert data["summary"]["usage"]["requests"] > 0
     assert data["summary"]["costs"][0]["currency"] == "usd"
     assert len(data["usage_series"]) == 2
+    assert data["series_granularity"] == "day"
+    assert len(data["project_cost_series"]) == 4
+    assert {row["project_name"] for row in data["project_cost_series"]} == {
+        "Customer Product",
+        "Internal Tools",
+    }
+    assert all("uncached_tokens" in row for row in data["usage_series"])
     assert {row["label"] for row in data["project_costs"]} == {
         "Customer Product",
         "Internal Tools",
@@ -39,3 +46,22 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
         "Customer Product",
         "Internal Tools",
     }
+
+
+async def test_dashboard_adapts_series_granularity(tmp_path):
+    database = Database(tmp_path / "dashboard.db")
+    database.initialize()
+    start = 1_735_689_600
+    await SyncService(database, MockUsageClient()).sync(start, start + 70 * 86_400)
+
+    weekly = get_dashboard_data(
+        database, DashboardFilters(start, start + 70 * 86_400)
+    )
+    monthly = get_dashboard_data(
+        database, DashboardFilters(start, start + 200 * 86_400)
+    )
+
+    assert weekly["series_granularity"] == "week"
+    assert 9 <= len(weekly["cost_series"]) <= 11
+    assert monthly["series_granularity"] == "month"
+    assert len(monthly["cost_series"]) == 3

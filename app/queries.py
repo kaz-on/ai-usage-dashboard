@@ -16,6 +16,7 @@ class DashboardFilters:
 
 
 def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[str, Any]:
+    granularity, bucket_expression = _series_bucket(filters)
     usage_where, usage_params = _where(filters, include_model=True)
     cost_where, cost_params = _where(filters, include_model=False)
     usage_join_where, usage_join_params = _where(filters, include_model=True, alias="u")
@@ -43,23 +44,40 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         )
         usage_series = _rows(
             connection.execute(
-                f"""SELECT bucket_start,
+                f"""SELECT {bucket_expression} AS bucket_start,
                     SUM(num_model_requests) AS requests,
                     SUM(input_tokens) AS input_tokens,
                     SUM(output_tokens) AS output_tokens,
-                    SUM(input_cached_tokens) AS cached_tokens
+                    SUM(input_cached_tokens) AS cached_tokens,
+                    SUM(input_uncached_tokens) AS uncached_tokens
                 FROM completion_usage WHERE {usage_where}
-                GROUP BY bucket_start ORDER BY bucket_start""",  # noqa: S608
+                GROUP BY 1 ORDER BY 1""",  # noqa: S608
                 usage_params,
             ).fetchall()
         )
         cost_series = _rows(
             connection.execute(
-                f"""SELECT bucket_start, currency,
+                f"""SELECT {bucket_expression} AS bucket_start, currency,
                     printf('%.8f', SUM(CAST(amount AS REAL))) AS amount
                 FROM costs WHERE {cost_where}
-                GROUP BY bucket_start, currency ORDER BY bucket_start, currency""",  # noqa: S608
+                GROUP BY 1, currency ORDER BY 1, currency""",  # noqa: S608
                 cost_params,
+            ).fetchall()
+        )
+        project_cost_series = _rows(
+            connection.execute(
+                f"""SELECT {bucket_expression.replace('bucket_start', 'c.bucket_start')}
+                        AS bucket_start,
+                    c.project_id,
+                    COALESCE(NULLIF(p.name, ''), NULLIF(c.project_id, ''), '未分類')
+                        AS project_name,
+                    c.currency,
+                    printf('%.8f', SUM(CAST(c.amount AS REAL))) AS amount
+                FROM costs c LEFT JOIN projects p ON p.id = c.project_id
+                WHERE {cost_join_where}
+                GROUP BY 1, c.project_id, p.name, c.currency
+                ORDER BY 1, c.currency, c.project_id""",  # noqa: S608
+                cost_join_params,
             ).fetchall()
         )
         models = _rows(
@@ -121,6 +139,8 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         "summary": {"usage": usage, "costs": costs},
         "usage_series": usage_series,
         "cost_series": cost_series,
+        "project_cost_series": project_cost_series,
+        "series_granularity": granularity,
         "model_breakdown": models,
         "project_costs": projects,
         "recent_usage": recent_usage,
@@ -247,6 +267,19 @@ def _where(
         clauses.append(f"{prefix}model = ?")
         params.append(filters.model)
     return " AND ".join(clauses), params
+
+
+def _series_bucket(filters: DashboardFilters) -> tuple[str, str]:
+    days = max(1, (filters.end_time - filters.start_time) // 86_400)
+    if days <= 45:
+        return "day", "(bucket_start / 86400) * 86400"
+    if days <= 180:
+        # Unix epoch started on a Thursday; offset four days to make Monday the boundary.
+        return "week", "((bucket_start - 345600) / 604800) * 604800 + 345600"
+    return (
+        "month",
+        "CAST(strftime('%s', strftime('%Y-%m-01', bucket_start, 'unixepoch')) AS INTEGER)",
+    )
 
 
 def _rows(rows) -> list[dict[str, Any]]:
