@@ -42,13 +42,53 @@ class SyncService:
         if self._lock.locked():
             raise RuntimeError("A synchronization is already running")
         async with self._lock:
+            metadata_count = await self._sync_metadata(start_time, end_time)
             completion_count = await self._sync_endpoint(
                 "completions", start_time, end_time, self.client.get_completions
             )
             cost_count = await self._sync_endpoint(
                 "costs", start_time, end_time, self.client.get_costs
             )
-            return {"completions": completion_count, "costs": cost_count}
+            return {
+                "metadata": metadata_count,
+                "completions": completion_count,
+                "costs": cost_count,
+            }
+
+    async def _sync_metadata(self, start_time: int, end_time: int) -> int:
+        run_id = self._start_run("metadata", start_time, end_time)
+        try:
+            projects = await self.client.get_projects()
+            api_keys: list[tuple[str, dict[str, Any]]] = []
+            for project in projects:
+                project_id = str(project["id"])
+                keys = await self.client.get_project_api_keys(project_id)
+                api_keys.extend((project_id, key) for key in keys)
+            record_count = self._replace_metadata(projects, api_keys)
+            self._finish_run(run_id, "success", record_count)
+            return record_count
+        except Exception as exc:
+            self._finish_run(run_id, "failed", 0, str(exc)[:1000])
+            raise
+
+    def _replace_metadata(
+        self,
+        projects: list[dict[str, Any]],
+        api_keys: list[tuple[str, dict[str, Any]]],
+    ) -> int:
+        synced_at = int(time.time())
+        with self.database.connect() as connection:
+            connection.execute("DELETE FROM project_api_keys")
+            connection.execute("DELETE FROM projects")
+            connection.executemany(
+                PROJECT_INSERT,
+                [_project_row(project, synced_at) for project in projects],
+            )
+            connection.executemany(
+                API_KEY_INSERT,
+                [_api_key_row(project_id, key, synced_at) for project_id, key in api_keys],
+            )
+        return len(projects) + len(api_keys)
 
     async def _sync_endpoint(self, endpoint, start_time, end_time, fetcher) -> int:
         run_id = self._start_run(endpoint, start_time, end_time)
@@ -157,6 +197,33 @@ def _cost_row(bucket, result, synced_at) -> tuple[Any, ...]:
     )
 
 
+def _project_row(project: dict[str, Any], synced_at: int) -> tuple[Any, ...]:
+    return (
+        str(project["id"]),
+        _text(project, "name") or str(project["id"]),
+        _text(project, "status"),
+        project.get("archived_at"),
+        json.dumps(project, separators=(",", ":")),
+        synced_at,
+    )
+
+
+def _api_key_row(project_id: str, key: dict[str, Any], synced_at: int) -> tuple[Any, ...]:
+    owner = key.get("owner") or {}
+    owner_type = _text(owner, "type")
+    owner_details = owner.get(owner_type) or {}
+    return (
+        str(key["id"]),
+        project_id,
+        _text(key, "name") or str(key["id"]),
+        owner_type,
+        _text(owner_details, "name"),
+        _text(key, "redacted_value"),
+        json.dumps(key, separators=(",", ":")),
+        synced_at,
+    )
+
+
 COMPLETION_INSERT = f"""
 INSERT INTO completion_usage (
     bucket_start, bucket_end, project_id, user_id, api_key_id, model, batch, service_tier,
@@ -169,4 +236,15 @@ INSERT INTO costs (
     bucket_start, bucket_end, project_id, api_key_id, line_item,
     currency, amount, quantity, raw_json, synced_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+PROJECT_INSERT = """
+INSERT INTO projects (id, name, status, archived_at, raw_json, synced_at)
+VALUES (?, ?, ?, ?, ?, ?)
+"""
+
+API_KEY_INSERT = """
+INSERT INTO project_api_keys (
+    id, project_id, name, owner_type, owner_name, redacted_value, raw_json, synced_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 """

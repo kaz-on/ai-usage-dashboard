@@ -17,6 +17,12 @@ COST_GROUP_BY = ["project_id", "line_item", "api_key_id"]
 
 
 class UsageClient(Protocol):
+    async def get_projects(self) -> list[dict[str, Any]]:
+        """Return all projects, including archived projects."""
+
+    async def get_project_api_keys(self, project_id: str) -> list[dict[str, Any]]:
+        """Return all visible API keys in a project."""
+
     async def get_completions(self, start_time: int, end_time: int) -> list[dict[str, Any]]:
         """Return all completion usage buckets in the requested interval."""
 
@@ -37,6 +43,18 @@ class OpenAIUsageClient:
             headers={"Authorization": f"Bearer {admin_key}"},
             timeout=30,
             transport=transport,
+        )
+
+    async def get_projects(self) -> list[dict[str, Any]]:
+        return await self._get_list(
+            "/organization/projects",
+            {"limit": 100, "include_archived": True},
+        )
+
+    async def get_project_api_keys(self, project_id: str) -> list[dict[str, Any]]:
+        return await self._get_list(
+            f"/organization/projects/{project_id}/api_keys",
+            {"limit": 100, "owner_project_access": "any"},
         )
 
     async def aclose(self) -> None:
@@ -80,6 +98,21 @@ class OpenAIUsageClient:
             page = response.get("next_page")
             if not page:
                 raise RuntimeError("OpenAI API returned has_more without next_page")
+
+    async def _get_list(self, path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+        objects: list[dict[str, Any]] = []
+        after: str | None = None
+        while True:
+            page_params = dict(params)
+            if after:
+                page_params["after"] = after
+            response = await self._request(path, page_params)
+            objects.extend(response.get("data", []))
+            if not response.get("has_more"):
+                return objects
+            after = response.get("last_id")
+            if not after:
+                raise RuntimeError("OpenAI API returned has_more without last_id")
 
     async def _request(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         for attempt in range(3):

@@ -13,10 +13,12 @@ async def test_sync_replaces_same_range_without_duplicates(tmp_path):
     first = await service.sync(1_735_689_600, 1_735_862_400)
     second = await service.sync(1_735_689_600, 1_735_862_400)
 
-    assert first == second == {"completions": 4, "costs": 4}
+    assert first == second == {"metadata": 4, "completions": 4, "costs": 4}
     with database.connect() as connection:
         assert connection.execute("SELECT count(*) FROM completion_usage").fetchone()[0] == 4
         assert connection.execute("SELECT count(*) FROM costs").fetchone()[0] == 4
+        assert connection.execute("SELECT count(*) FROM projects").fetchone()[0] == 2
+        assert connection.execute("SELECT count(*) FROM project_api_keys").fetchone()[0] == 2
         statuses = connection.execute("SELECT status FROM sync_runs").fetchall()
     assert {row["status"] for row in statuses} == {"success"}
 

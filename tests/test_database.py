@@ -13,4 +13,10 @@ def test_initialize_creates_tables(tmp_path):
             ).fetchall()
         }
 
-    assert {"completion_usage", "costs", "sync_runs"} <= names
+    assert {
+        "completion_usage",
+        "costs",
+        "projects",
+        "project_api_keys",
+        "sync_runs",
+    } <= names

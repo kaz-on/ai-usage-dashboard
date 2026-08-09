@@ -9,6 +9,40 @@ SECONDS_PER_DAY = 86_400
 class MockUsageClient:
     """Generate deterministic data so the complete UI can run without an API key."""
 
+    async def get_projects(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "proj_product",
+                "object": "organization.project",
+                "name": "Customer Product",
+                "status": "active",
+                "archived_at": None,
+            },
+            {
+                "id": "proj_internal",
+                "object": "organization.project",
+                "name": "Internal Tools",
+                "status": "active",
+                "archived_at": None,
+            },
+        ]
+
+    async def get_project_api_keys(self, project_id: str) -> list[dict[str, Any]]:
+        key_index = 1 if project_id == "proj_product" else 2
+        return [
+            {
+                "id": f"key_{key_index}",
+                "object": "organization.project.api_key",
+                "name": "Production" if key_index == 1 else "Department Batch",
+                "redacted_value": f"sk-demo...{key_index}",
+                "owner_project_access": "active",
+                "owner": {
+                    "type": "service_account",
+                    "service_account": {"name": "Dashboard Demo"},
+                },
+            }
+        ]
+
     async def get_completions(self, start_time: int, end_time: int) -> list[dict[str, Any]]:
         buckets: list[dict[str, Any]] = []
         for day_index, bucket_start in enumerate(_days(start_time, end_time)):

@@ -64,6 +64,30 @@ CREATE TABLE IF NOT EXISTS costs (
 
 CREATE INDEX IF NOT EXISTS idx_costs_bucket ON costs(bucket_start, bucket_end);
 
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT '',
+    archived_at INTEGER,
+    raw_json TEXT NOT NULL,
+    synced_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_api_keys (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    owner_type TEXT NOT NULL DEFAULT '',
+    owner_name TEXT NOT NULL DEFAULT '',
+    redacted_value TEXT NOT NULL DEFAULT '',
+    raw_json TEXT NOT NULL,
+    synced_at INTEGER NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_api_keys_project
+ON project_api_keys(project_id);
+
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY,
     endpoint TEXT NOT NULL,
