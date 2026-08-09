@@ -28,6 +28,8 @@ async def test_dashboard_and_empty_api(tmp_path):
         assert dashboard.status_code == 200
         assert "/static/chart.umd.min.js" in dashboard.text
         assert 'id="cost-currency"' in dashboard.text
+        assert 'id="input-token-chart"' in dashboard.text
+        assert 'id="output-token-chart"' in dashboard.text
         response = await client.get("/api/dashboard?from=2025-01-01&to=2025-01-31")
 
     assert response.status_code == 200

@@ -6,7 +6,6 @@ const currencySelect = document.querySelector("#cost-currency");
 const number = new Intl.NumberFormat("ja-JP", { notation: "compact", maximumFractionDigits: 1 });
 const integer = new Intl.NumberFormat("ja-JP");
 const charts = new Map();
-const palette = ["#35d49a", "#5da8ff", "#ffc765", "#c084fc", "#fb7185", "#22d3ee", "#a3e635", "#f97316"];
 const granularityLabels = { day: "日次", week: "週次", month: "月次" };
 let currentData = null;
 let selectedCurrency = "";
@@ -79,7 +78,12 @@ function render(data) {
     granularity: data.series_granularity,
     formatter: value => integer.format(value),
   });
-  tokenChart(data.usage_series, data.series_granularity);
+  inputTokenChart(data.usage_series, data.series_granularity);
+  lineChart("output-token-chart", data.usage_series, [{ key: "output_tokens", label: "Output", color: "#5da8ff" }], {
+    ariaLabel: "Outputトークン数の推移",
+    granularity: data.series_granularity,
+    formatter: value => integer.format(value),
+  });
   bars("model-breakdown", data.model_breakdown, "tokens", value => number.format(value));
   table(data.recent_usage);
   options("project_id", data.filters.projects);
@@ -107,7 +111,8 @@ function configureCurrencies(data) {
 
 function renderCostViews(data) {
   const rows = data.project_cost_series.filter(row => row.currency === selectedCurrency);
-  const projectCount = new Set(rows.map(row => row.project_id || "__unclassified__")).size;
+  const activeProjects = activeCostProjectKeys(rows);
+  const projectCount = activeProjects.size;
   const detail = document.querySelector("#cost-chart-detail");
   detail.textContent = projectCount > 8
     ? `${granularityLabels[data.series_granularity]}・上位8件＋その他`
@@ -118,7 +123,9 @@ function renderCostViews(data) {
   costChart(rows, selectedCurrency, data.series_granularity);
   bars(
     "project-breakdown",
-    data.project_costs.filter(row => row.currency === selectedCurrency).slice(0, 12),
+    data.project_costs
+      .filter(row => row.currency === selectedCurrency && Math.abs(Number(row.amount)) > 1e-8)
+      .slice(0, 12),
     "amount",
     value => formatCurrency(value, selectedCurrency),
   );
@@ -126,7 +133,6 @@ function renderCostViews(data) {
 
 function costChart(rows, currency, granularity) {
   if (!rows.length) { emptyChart("cost-chart"); return; }
-  const timestamps = [...new Set(rows.map(row => row.bucket_start))].sort((a, b) => a - b);
   const totals = new Map();
   const names = new Map();
   rows.forEach(row => {
@@ -134,10 +140,16 @@ function costChart(rows, currency, granularity) {
     totals.set(key, (totals.get(key) || 0) + Number(row.amount));
     names.set(key, row.project_name);
   });
-  const ranked = [...totals].sort((a, b) => b[1] - a[1]);
+  const ranked = [...totals]
+    .filter(([, total]) => Math.abs(total) > 1e-8)
+    .sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) { emptyChart("cost-chart"); return; }
+  const activeKeys = new Set(ranked.map(([key]) => key));
+  const activeRows = rows.filter(row => activeKeys.has(row.project_id || "__unclassified__"));
+  const timestamps = [...new Set(activeRows.map(row => row.bucket_start))].sort((a, b) => a - b);
   const visible = new Set(ranked.slice(0, 8).map(([key]) => key));
   const values = new Map();
-  rows.forEach(row => {
+  activeRows.forEach(row => {
     const projectKey = row.project_id || "__unclassified__";
     const key = visible.has(projectKey) ? projectKey : "__other__";
     const pointKey = `${key}:${row.bucket_start}`;
@@ -145,10 +157,11 @@ function costChart(rows, currency, granularity) {
   });
   const keys = ranked.slice(0, 8).map(([key]) => key);
   if (ranked.length > 8) keys.push("__other__");
+  const colors = projectColors(keys.filter(key => key !== "__other__"));
   const datasets = keys.map(key => ({
     label: key === "__other__" ? "その他" : names.get(key),
     data: timestamps.map(timestamp => values.get(`${key}:${timestamp}`) || 0),
-    backgroundColor: key === "__other__" ? "#65717d" : projectColor(key),
+    backgroundColor: key === "__other__" ? "#65717d" : colors.get(key),
     borderWidth: 0,
     borderRadius: 2,
     stack: "cost",
@@ -238,16 +251,15 @@ function lineChart(id, rows, series, settings) {
   addKeyboardNavigation(chart, canvas, fullLabels, index => `${fullLabels[index]}、${datasets.map(dataset => `${dataset.label} ${settings.formatter(dataset.data[index])}`).join("、")}`);
 }
 
-function tokenChart(rows, granularity) {
-  if (!rows.length) { emptyChart("token-chart"); return; }
+function inputTokenChart(rows, granularity) {
+  if (!rows.length) { emptyChart("input-token-chart"); return; }
   const labels = rows.map(row => dateLabel(row.bucket_start, granularity));
   const fullLabels = rows.map(row => fullDateLabel(row.bucket_start, granularity));
   const datasets = [
     { type: "bar", label: "Uncached input", key: "uncached_tokens", backgroundColor: "#35d49a", stack: "input", borderWidth: 0 },
     { type: "bar", label: "Cached input", key: "cached_tokens", backgroundColor: "#ffc765", stack: "input", borderWidth: 0 },
-    { type: "line", label: "Output", key: "output_tokens", borderColor: "#5da8ff", backgroundColor: "#5da8ff", stack: "output", borderWidth: 2.3, pointRadius: 0, pointHoverRadius: 4, tension: 0.25 },
   ].map(dataset => ({ ...dataset, data: rows.map(row => Number(row[dataset.key] || 0)) }));
-  const canvas = chartCanvas("token-chart", "CachedとUncachedのInput、およびOutputトークンの推移");
+  const canvas = chartCanvas("input-token-chart", "CachedとUncachedのInputトークン内訳");
   const chart = new Chart(canvas, {
     type: "bar",
     data: { labels, datasets },
@@ -264,7 +276,7 @@ function tokenChart(rows, granularity) {
       },
     },
   });
-  registerChart("token-chart", chart);
+  registerChart("input-token-chart", chart);
   addKeyboardNavigation(chart, canvas, fullLabels, index => `${fullLabels[index]}、${datasets.map(dataset => `${dataset.label} ${integer.format(dataset.data[index])}`).join("、")}`);
 }
 
@@ -330,11 +342,34 @@ function addKeyboardNavigation(chart, canvas, labels, describe) {
   });
 }
 
-function projectColor(projectId) {
+function activeCostProjectKeys(rows) {
+  const totals = new Map();
+  rows.forEach(row => {
+    const key = row.project_id || "__unclassified__";
+    totals.set(key, (totals.get(key) || 0) + Number(row.amount));
+  });
+  return new Set([...totals].filter(([, total]) => Math.abs(total) > 1e-8).map(([key]) => key));
+}
+
+function projectColors(projectIds) {
+  const colors = new Map();
+  const usedHues = [];
+  [...projectIds].sort().forEach(projectId => {
+    let hue = projectHue(projectId);
+    while (usedHues.some(used => hueDistance(hue, used) < 28)) hue = (hue + 137.508) % 360;
+    usedHues.push(hue);
+    colors.set(projectId, `hsl(${hue.toFixed(1)} 72% 62%)`);
+  });
+  return colors;
+}
+
+function projectHue(projectId) {
   let hash = 0;
   for (const character of projectId) hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0;
-  return palette[Math.abs(hash) % palette.length];
+  return Math.abs(hash) % 360;
 }
+
+function hueDistance(first, second) { const distance = Math.abs(first - second); return Math.min(distance, 360 - distance); }
 
 function bars(id, rows, key, formatter) {
   const node = document.getElementById(id);
