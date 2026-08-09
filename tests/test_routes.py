@@ -1,0 +1,45 @@
+import httpx
+
+from app.config import Settings
+from app.main import create_app
+
+
+def settings(tmp_path):
+    return Settings(
+        openai_admin_key=None,
+        database_path=tmp_path / "dashboard.db",
+        sync_interval_minutes=60,
+        initial_history_days=90,
+        sync_lookback_days=3,
+        timezone="Asia/Tokyo",
+        mock_mode=False,
+    )
+
+
+def client_for(tmp_path):
+    app = create_app(settings(tmp_path))
+    app.state.database.initialize()
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+
+
+async def test_dashboard_and_empty_api(tmp_path):
+    async with client_for(tmp_path) as client:
+        assert (await client.get("/")).status_code == 200
+        response = await client.get("/api/dashboard?from=2025-01-01&to=2025-01-31")
+
+    assert response.status_code == 200
+    assert response.json()["summary"]["usage"]["requests"] == 0
+
+
+async def test_sync_requires_key(tmp_path):
+    async with client_for(tmp_path) as client:
+        response = await client.post("/api/sync")
+
+    assert response.status_code == 409
+
+
+async def test_invalid_date_range(tmp_path):
+    async with client_for(tmp_path) as client:
+        response = await client.get("/api/dashboard?from=2025-02-01&to=2025-01-01")
+
+    assert response.status_code == 422
