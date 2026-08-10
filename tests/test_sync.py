@@ -1,8 +1,25 @@
 import time
+from datetime import UTC, datetime
 
 from app.database import Database
 from app.mock_client import MockUsageClient
 from app.sync import SyncService, default_sync_range
+
+
+def test_default_range_ends_at_next_utc_midnight(tmp_path, monkeypatch):
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 8, 10, 12, 34, 56, tzinfo=tz)
+
+    monkeypatch.setattr("app.sync.datetime", FixedDatetime)
+    database = Database(tmp_path / "dashboard.db")
+    database.initialize()
+
+    start, end = default_sync_range(database, history_days=90, lookback_days=3)
+
+    assert start == int(datetime(2026, 5, 12, 12, 34, 56, tzinfo=UTC).timestamp())
+    assert end == int(datetime(2026, 8, 11, tzinfo=UTC).timestamp())
 
 
 async def test_sync_replaces_same_range_without_duplicates(tmp_path):
