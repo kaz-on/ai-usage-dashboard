@@ -57,7 +57,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         )
         project_request_series = _rows(
             connection.execute(
-                f"""SELECT {bucket_expression.replace('bucket_start', 'u.bucket_start')}
+                f"""SELECT {bucket_expression.replace("bucket_start", "u.bucket_start")}
                         AS bucket_start,
                     u.project_id,
                     COALESCE(NULLIF(p.name, ''), NULLIF(u.project_id, ''), '未分類')
@@ -81,7 +81,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         )
         project_cost_series = _rows(
             connection.execute(
-                f"""SELECT {bucket_expression.replace('bucket_start', 'c.bucket_start')}
+                f"""SELECT {bucket_expression.replace("bucket_start", "c.bucket_start")}
                         AS bucket_start,
                     c.project_id,
                     COALESCE(NULLIF(p.name, ''), NULLIF(c.project_id, ''), '未分類')

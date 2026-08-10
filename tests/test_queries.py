@@ -28,9 +28,10 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
         "Customer Product",
         "Internal Tools",
     }
-    assert sum(row["requests"] for row in data["project_request_series"]) == data[
-        "summary"
-    ]["usage"]["requests"]
+    assert (
+        sum(row["requests"] for row in data["project_request_series"])
+        == data["summary"]["usage"]["requests"]
+    )
     assert all("uncached_tokens" in row for row in data["usage_series"])
     assert {row["label"] for row in data["project_costs"]} == {
         "Customer Product",
@@ -62,12 +63,8 @@ async def test_dashboard_adapts_series_granularity(tmp_path):
     start = 1_735_689_600
     await SyncService(database, MockUsageClient()).sync(start, start + 70 * 86_400)
 
-    weekly = get_dashboard_data(
-        database, DashboardFilters(start, start + 70 * 86_400)
-    )
-    monthly = get_dashboard_data(
-        database, DashboardFilters(start, start + 200 * 86_400)
-    )
+    weekly = get_dashboard_data(database, DashboardFilters(start, start + 70 * 86_400))
+    monthly = get_dashboard_data(database, DashboardFilters(start, start + 200 * 86_400))
 
     assert weekly["series_granularity"] == "week"
     assert 9 <= len(weekly["cost_series"]) <= 11
