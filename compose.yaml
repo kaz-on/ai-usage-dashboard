@@ -1,6 +1,9 @@
+name: ai-usage-dashboard
+
 services:
   dashboard:
     build: .
+    image: ai-usage-dashboard
     restart: unless-stopped
     init: true
     ports:
