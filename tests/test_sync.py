@@ -6,7 +6,7 @@ from app.mock_client import MockUsageClient
 from app.sync import SyncService, default_sync_range
 
 
-def test_default_range_ends_at_next_utc_midnight(tmp_path, monkeypatch):
+def test_default_range_aligns_to_utc_day_boundaries(tmp_path, monkeypatch):
     class FixedDatetime(datetime):
         @classmethod
         def now(cls, tz=None):
@@ -18,7 +18,7 @@ def test_default_range_ends_at_next_utc_midnight(tmp_path, monkeypatch):
 
     start, end = default_sync_range(database, history_days=90, lookback_days=3)
 
-    assert start == int(datetime(2026, 5, 12, 12, 34, 56, tzinfo=UTC).timestamp())
+    assert start == int(datetime(2026, 5, 12, tzinfo=UTC).timestamp())
     assert end == int(datetime(2026, 8, 11, tzinfo=UTC).timestamp())
 
 

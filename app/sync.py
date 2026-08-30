@@ -145,19 +145,19 @@ def default_sync_range(
     database: Database, history_days: int, lookback_days: int
 ) -> tuple[int, int]:
     now = datetime.now(UTC)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     # Usage and cost responses are grouped into UTC daily buckets.  In particular,
-    # the Costs API does not include today's bucket unless end_time reaches that
-    # bucket's exclusive end, so synchronize through the next UTC midnight.
-    end = int(
-        (now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)).timestamp()
-    )
+    # completions filters results using the exact start_time even though the bucket
+    # itself begins at midnight, while costs requires end_time to reach the bucket's
+    # exclusive end. Align both ends so every replaced bucket contains a full day.
+    end = int((day_start + timedelta(days=1)).timestamp())
     with database.connect() as connection:
         completed_endpoints = connection.execute(
             """SELECT COUNT(DISTINCT endpoint) FROM sync_runs
             WHERE status = 'success' AND endpoint IN ('completions', 'costs')"""
         ).fetchone()[0]
     days = lookback_days if completed_endpoints == 2 else history_days
-    start = int((now - timedelta(days=days)).timestamp())
+    start = int((day_start - timedelta(days=days)).timestamp())
     return start, end
 
 
