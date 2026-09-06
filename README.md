@@ -49,6 +49,7 @@ docker compose down
 ## 実際のOpenAIデータを使用
 
 Organization Admin API Keyを用意し、`.env`を次のように変更します。
+`OPENAI_ADMIN_KEY` は Usage API Scope と Organization Administration の Read 権限が必要です。
 
 ```dotenv
 OPENAI_ADMIN_KEY=sk-admin-...
@@ -80,7 +81,7 @@ OSのファイアウォールでも必要なサブネットだけにTCP 8080を�
 
 | 環境変数 | デフォルト | 説明 |
 | --- | --- | --- |
-| `OPENAI_ADMIN_KEY` | 空 | Organization Admin API Key |
+| `OPENAI_ADMIN_KEY` | 空 | Usage API Scope と Organization Administration の Read 権限を持つ Organization Admin API Key |
 | `DASHBOARD_SUBTITLE` | 空 | 画面タイトルの横に表示する集計対象名（例: Organization名） |
 | `MOCK_MODE` | `false` | デモデータを生成する |
 | `DASHBOARD_BIND_ADDRESS` | `0.0.0.0` | Dockerが公開するホスト側IP |
