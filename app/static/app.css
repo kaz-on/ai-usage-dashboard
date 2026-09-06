@@ -17,6 +17,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 syst
 .topbar { height: 88px; padding: 0 max(24px, calc((100vw - 1440px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: rgba(11, 13, 16, .92); }
 h1, h2, p { margin: 0; }
 h1 { font-size: 24px; letter-spacing: -.03em; }
+.dashboard-subtitle { margin-left: .5em; color: var(--muted); font-size: 14px; font-weight: 500; letter-spacing: 0; }
 h2 { font-size: 17px; }
 .eyebrow { color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: .16em; }
 main { max-width: 1440px; padding: 24px; margin: auto; }

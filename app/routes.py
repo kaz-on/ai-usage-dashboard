@@ -27,6 +27,7 @@ async def dashboard(request: Request):
             "default_to": today.isoformat(),
             "sync_enabled": request.app.state.sync_service is not None,
             "mock_mode": request.app.state.settings.mock_mode,
+            "dashboard_subtitle": request.app.state.settings.dashboard_subtitle,
         },
     )
 

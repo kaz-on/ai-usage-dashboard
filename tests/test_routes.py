@@ -7,6 +7,7 @@ from app.main import create_app
 def settings(tmp_path):
     return Settings(
         openai_admin_key=None,
+        dashboard_subtitle="Example Organization",
         database_path=tmp_path / "dashboard.db",
         sync_interval_minutes=60,
         initial_history_days=90,
@@ -30,6 +31,7 @@ async def test_dashboard_and_empty_api(tmp_path):
         assert 'id="cost-currency"' in dashboard.text
         assert 'id="input-token-chart"' in dashboard.text
         assert 'id="output-token-chart"' in dashboard.text
+        assert "Example Organization" in dashboard.text
         response = await client.get("/api/dashboard?from=2025-01-01&to=2025-01-31")
 
     assert response.status_code == 200

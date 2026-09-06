@@ -20,6 +20,7 @@ def _positive_int(name: str, default: int) -> int:
 @dataclass(frozen=True, slots=True)
 class Settings:
     openai_admin_key: str | None
+    dashboard_subtitle: str | None
     database_path: Path
     sync_interval_minutes: int
     initial_history_days: int
@@ -30,9 +31,11 @@ class Settings:
     @classmethod
     def from_env(cls) -> Settings:
         key = os.getenv("OPENAI_ADMIN_KEY") or None
+        subtitle = os.getenv("DASHBOARD_SUBTITLE", "").strip() or None
         mock_mode = os.getenv("MOCK_MODE", "false").lower() in {"1", "true", "yes"}
         return cls(
             openai_admin_key=key,
+            dashboard_subtitle=subtitle,
             database_path=Path(os.getenv("DATABASE_PATH", "./data/dashboard.db")),
             sync_interval_minutes=_positive_int("SYNC_INTERVAL_MINUTES", 60),
             initial_history_days=_positive_int("INITIAL_HISTORY_DAYS", 90),

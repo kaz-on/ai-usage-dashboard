@@ -10,7 +10,7 @@
   <header class="topbar">
     <div>
       <p class="eyebrow">ORGANIZATION ANALYTICS</p>
-      <h1>OpenAI Usage</h1>
+      <h1>OpenAI Usage{% if dashboard_subtitle %}<span class="dashboard-subtitle">{{ dashboard_subtitle }}</span>{% endif %}</h1>
     </div>
     <div class="topbar-actions">
       {% if mock_mode %}<span class="badge demo">DEMO DATA</span>{% endif %}

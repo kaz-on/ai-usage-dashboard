@@ -81,6 +81,7 @@ OSのファイアウォールでも必要なサブネットだけにTCP 8080を�
 | 環境変数 | デフォルト | 説明 |
 | --- | --- | --- |
 | `OPENAI_ADMIN_KEY` | 空 | Organization Admin API Key |
+| `DASHBOARD_SUBTITLE` | 空 | 画面タイトルの横に表示する集計対象名（例: Organization名） |
 | `MOCK_MODE` | `false` | デモデータを生成する |
 | `DASHBOARD_BIND_ADDRESS` | `0.0.0.0` | Dockerが公開するホスト側IP |
 | `DASHBOARD_PORT` | `8080` | ホスト側ポート |
