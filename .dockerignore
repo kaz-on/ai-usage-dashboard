@@ -4,8 +4,8 @@
 .pytest_cache
 .ruff_cache
 .venv
+node_modules
 __pycache__
 *.db
 *.egg-info
 tests
-

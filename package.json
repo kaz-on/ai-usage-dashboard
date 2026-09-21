@@ -1,0 +1,11 @@
+{
+  "name": "ai-usage-dashboard-frontend",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --project jsconfig.json"
+  },
+  "devDependencies": {
+    "chart.js": "4.5.1",
+    "typescript": "^5.9.2"
+  }
+}
