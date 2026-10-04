@@ -34,10 +34,14 @@ async def test_sync_replaces_same_range_without_duplicates(tmp_path):
     with database.connect() as connection:
         assert connection.execute("SELECT count(*) FROM completion_usage").fetchone()[0] == 4
         assert connection.execute("SELECT count(*) FROM costs").fetchone()[0] == 4
+        quantity = connection.execute(
+            "SELECT quantity, typeof(quantity), quantity_unit FROM costs LIMIT 1"
+        ).fetchone()
         assert connection.execute("SELECT count(*) FROM projects").fetchone()[0] == 2
         assert connection.execute("SELECT count(*) FROM project_api_keys").fetchone()[0] == 2
         statuses = connection.execute("SELECT status FROM sync_runs").fetchall()
     assert {row["status"] for row in statuses} == {"success"}
+    assert tuple(quantity) == (1000.0, "real", "tokens")
 
 
 async def test_default_range_shortens_only_after_both_endpoints_succeed(tmp_path):

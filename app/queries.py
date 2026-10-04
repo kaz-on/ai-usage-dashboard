@@ -36,7 +36,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         )
         costs = _rows(
             connection.execute(
-                f"""SELECT currency, printf('%.8f', SUM(CAST(amount AS REAL))) AS amount
+                f"""SELECT currency, SUM(amount) AS amount
                 FROM costs WHERE {cost_where}
                 GROUP BY currency ORDER BY currency""",  # noqa: S608
                 cost_params,
@@ -73,7 +73,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
         cost_series = _rows(
             connection.execute(
                 f"""SELECT {bucket_expression} AS bucket_start, currency,
-                    printf('%.8f', SUM(CAST(amount AS REAL))) AS amount
+                    SUM(amount) AS amount
                 FROM costs WHERE {cost_where}
                 GROUP BY 1, currency ORDER BY 1, currency""",  # noqa: S608
                 cost_params,
@@ -87,7 +87,7 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
                     COALESCE(NULLIF(p.name, ''), NULLIF(c.project_id, ''), '未分類')
                         AS project_name,
                     c.currency,
-                    printf('%.8f', SUM(CAST(c.amount AS REAL))) AS amount
+                    SUM(c.amount) AS amount
                 FROM costs c LEFT JOIN projects p ON p.id = c.project_id
                 WHERE {cost_join_where}
                 GROUP BY 1, c.project_id, p.name, c.currency
@@ -110,11 +110,11 @@ def get_dashboard_data(database: Database, filters: DashboardFilters) -> dict[st
                 f"""SELECT
                     COALESCE(NULLIF(p.name, ''), NULLIF(c.project_id, ''), '未分類') AS label,
                     c.project_id, c.currency,
-                    printf('%.8f', SUM(CAST(c.amount AS REAL))) AS amount
+                    SUM(c.amount) AS amount
                 FROM costs c LEFT JOIN projects p ON p.id = c.project_id
                 WHERE {cost_join_where}
                 GROUP BY c.project_id, p.name, c.currency
-                ORDER BY CAST(amount AS REAL) DESC""",  # noqa: S608
+                ORDER BY SUM(c.amount) DESC""",  # noqa: S608
                 cost_join_params,
             ).fetchall()
         )
@@ -249,11 +249,12 @@ def csv_rows(
             "currency",
             "amount",
             "quantity",
+            "quantity_unit",
         ]
         select = """c.bucket_start, c.bucket_end, c.project_id,
             COALESCE(NULLIF(p.name, ''), c.project_id) AS project_name,
             c.api_key_id, COALESCE(NULLIF(k.name, ''), c.api_key_id) AS api_key_name,
-            c.line_item, c.currency, c.amount, c.quantity"""
+            c.line_item, c.currency, c.amount, c.quantity, c.quantity_unit"""
         source = """costs c
             LEFT JOIN projects p ON p.id = c.project_id
             LEFT JOIN project_api_keys k ON k.id = c.api_key_id"""

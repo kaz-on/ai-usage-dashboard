@@ -13,7 +13,7 @@ interface UsageSummary {
 
 interface CostSummary {
   currency: string;
-  amount: string;
+  amount: number;
 }
 
 interface UsageSeriesRow {
@@ -35,7 +35,7 @@ interface ProjectRequestRow {
 interface CostSeriesRow {
   bucket_start: number;
   currency: string;
-  amount: string;
+  amount: number;
 }
 
 interface ProjectCostRow extends CostSeriesRow {
@@ -53,7 +53,7 @@ interface ProjectCostTotal {
   label: string;
   project_id: string;
   currency: string;
-  amount: string;
+  amount: number;
 }
 
 interface RecentUsageRow {

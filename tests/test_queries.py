@@ -13,12 +13,16 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
     data = get_dashboard_data(database, DashboardFilters(start, end))
     options = get_filter_options(database)
     columns, exported = csv_rows(database, "completions", DashboardFilters(start, end))
+    cost_columns, cost_exported = csv_rows(database, "costs", DashboardFilters(start, end))
 
     assert data["summary"]["usage"]["requests"] > 0
     assert data["summary"]["costs"][0]["currency"] == "usd"
+    assert isinstance(data["summary"]["costs"][0]["amount"], float)
     assert len(data["usage_series"]) == 2
     assert data["series_granularity"] == "day"
     assert len(data["project_cost_series"]) == 4
+    assert all(isinstance(row["amount"], float) for row in data["cost_series"])
+    assert all(isinstance(row["amount"], float) for row in data["project_cost_series"])
     assert len(data["project_request_series"]) == 4
     assert {row["project_name"] for row in data["project_cost_series"]} == {
         "Customer Product",
@@ -55,6 +59,8 @@ async def test_dashboard_aggregates_mock_data(tmp_path):
         "Customer Product",
         "Internal Tools",
     }
+    assert "quantity_unit" in cost_columns
+    assert {row["quantity_unit"] for row in cost_exported} == {"tokens"}
 
 
 async def test_dashboard_adapts_series_granularity(tmp_path):

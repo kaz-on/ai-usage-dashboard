@@ -195,8 +195,9 @@ def _cost_row(bucket, result, synced_at) -> tuple[Any, ...]:
         _text(result, "api_key_id"),
         _text(result, "line_item"),
         _text(amount, "currency"),
-        str(amount.get("value") or 0),
-        None if quantity is None else str(quantity),
+        float(amount.get("value") or 0),
+        None if quantity is None else float(quantity),
+        None if result.get("quantity_unit") is None else str(result["quantity_unit"]),
         json.dumps(result, separators=(",", ":")),
         synced_at,
     )
@@ -239,8 +240,8 @@ INSERT INTO completion_usage (
 COST_INSERT = """
 INSERT INTO costs (
     bucket_start, bucket_end, project_id, api_key_id, line_item,
-    currency, amount, quantity, raw_json, synced_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    currency, amount, quantity, quantity_unit, raw_json, synced_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 PROJECT_INSERT = """

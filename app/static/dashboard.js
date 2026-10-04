@@ -151,7 +151,7 @@ function renderCostViews(data) {
   costShareBars(
     data.project_costs.filter(row => row.currency === selectedCurrency).slice(0, 12),
     selectedCurrency,
-    Number(selectedTotal?.amount || 0),
+    selectedTotal?.amount || 0,
   );
 }
 
@@ -456,8 +456,8 @@ function groupProjectRows(rows, valueKey) {
   rows.forEach(row => {
     const key = row.project_id || "__unclassified__";
     const value = valueKey === "amount"
-      ? Number(/** @type {ProjectCostRow} */ (row).amount)
-      : Number(/** @type {ProjectRequestRow} */ (row).requests);
+      ? /** @type {ProjectCostRow} */ (row).amount
+      : /** @type {ProjectRequestRow} */ (row).requests;
     totals.set(key, (totals.get(key) || 0) + value);
     names.set(key, row.project_name);
   });
@@ -470,8 +470,8 @@ function groupProjectRows(rows, valueKey) {
     const key = visible.has(projectKey) ? projectKey : "__other__";
     const pointKey = `${key}:${row.bucket_start}`;
     const value = valueKey === "amount"
-      ? Number(/** @type {ProjectCostRow} */ (row).amount)
-      : Number(/** @type {ProjectRequestRow} */ (row).requests);
+      ? /** @type {ProjectCostRow} */ (row).amount
+      : /** @type {ProjectRequestRow} */ (row).requests;
     values.set(pointKey, (values.get(pointKey) || 0) + value);
   });
   const keys = ranked.slice(0, 8).map(([key]) => key);
@@ -529,7 +529,7 @@ function costShareBars(rows, currency, total) {
   const node = requiredElement("#project-breakdown", HTMLElement);
   if (!rows.length || !total) { node.innerHTML = '<div class="empty">データがありません</div>'; return; }
   node.innerHTML = rows.map(row => {
-    const amount = Number(row.amount);
+    const amount = row.amount;
     const share = amount / total * 100;
     const width = Math.max(0, Math.min(100, share));
     return `<div class="bar-row"><span class="bar-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><span class="bar-value share-value"><span>${escapeHtml(formatCurrency(amount, currency))}</span><small>${share.toFixed(1)}%</small></span></div>`;

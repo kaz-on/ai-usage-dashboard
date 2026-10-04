@@ -90,7 +90,8 @@ class MockUsageClient:
                         "api_key_id": f"key_{project_index + 1}",
                         "line_item": "Completions",
                         "amount": {"currency": "usd", "value": amount},
-                        "quantity": None,
+                        "quantity": 1_000 + day_index * 100 + project_index,
+                        "quantity_unit": "tokens",
                     }
                 )
             buckets.append(_bucket(bucket_start, results))
