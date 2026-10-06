@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenAI Usage Dashboard</title>
+  <title>AI Usage Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
 </head>
 <body>
   <header class="topbar">
     <div>
       <p class="eyebrow">ORGANIZATION ANALYTICS</p>
-      <h1>OpenAI Usage{% if dashboard_subtitle %}<span class="dashboard-subtitle">{{ dashboard_subtitle }}</span>{% endif %}</h1>
+      <h1>AI Usage Dashboard{% if dashboard_subtitle %}<span class="dashboard-subtitle">{{ dashboard_subtitle }}</span>{% endif %}</h1>
     </div>
     <div class="topbar-actions">
       {% if mock_mode %}<span class="badge demo">DEMO DATA</span>{% endif %}

@@ -1,4 +1,6 @@
 .env
+.env.*
+.local-backups
 .git
 .gitignore
 .pytest_cache
@@ -7,5 +9,9 @@
 node_modules
 __pycache__
 *.db
+*.db-shm
+*.db-wal
 *.egg-info
+build
+dist
 tests

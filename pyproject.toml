@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "openai-usage-dashboard"
 version = "0.1.0"
 description = "A lightweight LAN dashboard for OpenAI organization usage and costs"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE", "app/static/CHARTJS-LICENSE.md"]
 dependencies = [
   "apscheduler>=3.10,<4",
   "fastapi>=0.115,<1",
@@ -36,4 +38,3 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-

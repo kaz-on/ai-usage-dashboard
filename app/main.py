@@ -78,7 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if isinstance(client, OpenAIUsageClient):
                 await client.aclose()
 
-    app = FastAPI(title="OpenAI Usage Dashboard", lifespan=lifespan)
+    app = FastAPI(title="AI Usage Dashboard", lifespan=lifespan)
     app.state.settings = app_settings
     app.state.database = database
     app.state.sync_service = None
