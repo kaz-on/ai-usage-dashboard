@@ -111,64 +111,6 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
             connection.executescript(SCHEMA)
-            self._migrate_cost_columns(connection)
-
-    @staticmethod
-    def _migrate_cost_columns(connection: sqlite3.Connection) -> None:
-        columns = {
-            row[1]: row[2].upper() for row in connection.execute("PRAGMA table_info(costs)")
-        }
-        if (
-            columns.get("amount") == "REAL"
-            and columns.get("quantity") == "REAL"
-            and "quantity_unit" in columns
-        ):
-            return
-
-        quantity_unit = (
-            "quantity_unit"
-            if "quantity_unit" in columns
-            else "json_extract(raw_json, '$.quantity_unit')"
-        )
-        connection.executescript(
-            f"""
-            BEGIN IMMEDIATE;
-
-            CREATE TABLE costs_new (
-                id INTEGER PRIMARY KEY,
-                bucket_start INTEGER NOT NULL,
-                bucket_end INTEGER NOT NULL,
-                project_id TEXT NOT NULL DEFAULT '',
-                api_key_id TEXT NOT NULL DEFAULT '',
-                line_item TEXT NOT NULL DEFAULT '',
-                currency TEXT NOT NULL DEFAULT '',
-                amount REAL NOT NULL DEFAULT 0,
-                quantity REAL,
-                quantity_unit TEXT,
-                raw_json TEXT NOT NULL,
-                synced_at INTEGER NOT NULL,
-                UNIQUE (
-                    bucket_start, bucket_end, project_id, api_key_id, line_item, currency
-                )
-            );
-
-            INSERT INTO costs_new (
-                id, bucket_start, bucket_end, project_id, api_key_id, line_item,
-                currency, amount, quantity, quantity_unit, raw_json, synced_at
-            )
-            SELECT
-                id, bucket_start, bucket_end, project_id, api_key_id, line_item,
-                currency, CAST(amount AS REAL), CAST(quantity AS REAL),
-                {quantity_unit}, raw_json, synced_at
-            FROM costs;
-
-            DROP TABLE costs;
-            ALTER TABLE costs_new RENAME TO costs;
-            CREATE INDEX idx_costs_bucket ON costs(bucket_start, bucket_end);
-
-            COMMIT;
-            """
-        )
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
