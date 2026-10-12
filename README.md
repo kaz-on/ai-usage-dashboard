@@ -56,6 +56,26 @@ docker compose down
 
 `docker compose down -v`はSQLiteを保存したボリュームも削除するため、データを残したい場合は`-v`を付けないでください。
 
+## Dockerを使わずに起動
+
+Python 3.12以上を用意して、次のコマンドを実行します。既に`.env`がある場合は、コピーを省略してください。
+
+```bash
+cp .env.example .env
+./run.sh
+```
+
+`run.sh`は`.venv`を作成し、起動のたびに依存パッケージをインストールしてからサーバーを起動します。
+起動したホストのブラウザで`http://127.0.0.1:8080`を開きます。停止するには`Ctrl+C`を押します。
+待ち受けIPとポートは`.env`の`DASHBOARD_BIND_ADDRESS`と`DASHBOARD_PORT`で変更できます。
+SQLiteはデフォルトで`./data/dashboard.db`に保存されます。
+
+`.env`はBashの`source`で読み込むため、値に空白がある場合は引用符で囲んでください。
+
+```dotenv
+DASHBOARD_SUBTITLE="Example Organization"
+```
+
 ## 実際のOpenAIデータを使用
 
 Organization Admin API Keyを用意し、`.env`を次のように変更します。
@@ -98,8 +118,8 @@ LAN内の別の端末からは`http://192.168.10.20:8080`を開きます。
 | `OPENAI_ADMIN_KEY` | 空 | Usage API Scope と Organization Administration の Read 権限を持つ Organization Admin API Key |
 | `DASHBOARD_SUBTITLE` | 空 | 画面タイトルの横に表示する集計対象名（例: Organization名） |
 | `MOCK_MODE` | `false` | デモデータを生成する |
-| `DASHBOARD_BIND_ADDRESS` | `127.0.0.1` | Dockerが公開するホスト側IP。LAN利用時はホストのLAN側IPを指定 |
-| `DASHBOARD_PORT` | `8080` | ホスト側ポート |
+| `DASHBOARD_BIND_ADDRESS` | `127.0.0.1` | Dockerが公開するホスト側IP、または`run.sh`の待ち受けIP。LAN利用時はホストのLAN側IPを指定 |
+| `DASHBOARD_PORT` | `8080` | Dockerが公開するホスト側ポート、または`run.sh`の待ち受けポート |
 | `TZ` | `Asia/Tokyo` | スケジューラーのタイムゾーン |
 | `SYNC_INTERVAL_MINUTES` | `60` | 自動同期間隔 |
 | `INITIAL_HISTORY_DAYS` | `90` | 初回取得日数 |
