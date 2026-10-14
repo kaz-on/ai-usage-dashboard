@@ -23,6 +23,14 @@
 
   <main id="dashboard" aria-busy="true">
     <form id="filters" class="panel filters">
+      <div class="period-presets" role="group" aria-label="期間プリセット" aria-describedby="period-preset-note">
+        <span class="period-label">最近の期間</span>
+        <button class="button secondary period-preset" type="button" data-months="1" aria-pressed="false">1か月</button>
+        <button class="button secondary period-preset" type="button" data-months="3" aria-pressed="false">3か月</button>
+        <button class="button secondary period-preset" type="button" data-months="6" aria-pressed="false">6か月</button>
+        <button class="button secondary period-preset" type="button" data-months="12" aria-pressed="false">1年</button>
+        <span id="period-preset-note" class="period-note">今日（UTC）までの期間を設定。「更新」で適用</span>
+      </div>
       <label>開始日<input type="date" name="from" value="{{ default_from }}"></label>
       <label>終了日<input type="date" name="to" value="{{ default_to }}"></label>
       <label>Project<select name="project_id"><option value="">すべて</option></select></label>

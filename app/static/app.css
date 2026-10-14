@@ -28,6 +28,12 @@ input, select { width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--te
 .button { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 14px; color: #06120e; background: var(--green); border: 0; border-radius: 7px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .button.secondary { color: var(--text); background: var(--panel-2); border: 1px solid var(--line); }
 .button:disabled { opacity: .4; cursor: not-allowed; }
+.period-presets { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.period-label { color: var(--muted); font-size: 11px; font-weight: 700; margin-right: 4px; }
+.period-preset { min-height: 32px; padding: 0 12px; font-size: 12px; }
+.period-preset[aria-pressed="true"] { color: var(--green); border-color: var(--green); }
+.period-preset:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.period-note { color: var(--muted); font-size: 11px; }
 .topbar-actions, .export-actions { display: flex; gap: 8px; align-items: center; }
 .badge { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 11px; }
 .badge.demo { border-color: #73551d; color: var(--amber); }

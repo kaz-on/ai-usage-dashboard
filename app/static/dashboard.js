@@ -13,6 +13,9 @@ function requiredElement(selector, constructor) {
 }
 
 const form = requiredElement("#filters", HTMLFormElement);
+const fromInput = requiredElement('#filters [name="from"]', HTMLInputElement);
+const toInput = requiredElement('#filters [name="to"]', HTMLInputElement);
+const periodButtons = form.querySelectorAll("button[data-months]");
 const dashboard = requiredElement("#dashboard", HTMLElement);
 const message = requiredElement("#message", HTMLParagraphElement);
 const submitButton = requiredElement("#filter-submit", HTMLButtonElement);
@@ -35,6 +38,23 @@ function params() {
   const searchParams = new URLSearchParams();
   new FormData(form).forEach((value, key) => searchParams.append(key, String(value)));
   return searchParams;
+}
+
+/** @param {number} months @param {Date} [today] */
+function recentPeriod(months, today = new Date()) {
+  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const start = new Date(end);
+  // Move from the first of the month, then clamp the day for shorter months.
+  start.setUTCDate(1);
+  start.setUTCMonth(start.getUTCMonth() - months);
+  const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
+  start.setUTCDate(Math.min(end.getUTCDate(), lastDay));
+  return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+}
+
+/** @param {Element | null} selected */
+function selectPeriodButton(selected) {
+  periodButtons.forEach(button => button.setAttribute("aria-pressed", String(button === selected)));
 }
 /** @param {string} text */
 function showMessage(text) { message.textContent = text; message.hidden = !text; }
@@ -562,6 +582,18 @@ function syncStatus(data) {
 function escapeHtml(value) { const node = document.createElement("span"); node.textContent = String(value); return node.innerHTML; }
 
 form.addEventListener("submit", event => { event.preventDefault(); loadDashboard(); });
+periodButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    const period = recentPeriod(Number(button.getAttribute("data-months")));
+    fromInput.value = period.from;
+    toInput.value = period.to;
+    selectPeriodButton(button);
+  });
+});
+[fromInput, toInput].forEach(input => {
+  input.addEventListener("input", () => selectPeriodButton(null));
+  input.addEventListener("change", () => selectPeriodButton(null));
+});
 currencySelect.addEventListener("change", () => { selectedCurrency = currencySelect.value; if (currentData) renderCostViews(currentData); });
 requiredElement("#sync-button", HTMLButtonElement).addEventListener("click", async () => {
   showMessage("");
