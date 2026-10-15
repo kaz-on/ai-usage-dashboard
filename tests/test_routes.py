@@ -1,4 +1,8 @@
+from datetime import UTC, datetime
+from unittest.mock import patch
+
 import httpx
+import pytest
 
 from app.config import Settings
 from app.main import create_app
@@ -36,6 +40,30 @@ async def test_dashboard_and_empty_api(tmp_path):
 
     assert response.status_code == 200
     assert response.json()["summary"]["usage"]["requests"] == 0
+
+
+@pytest.mark.parametrize(
+    ("today", "expected_from"),
+    [
+        ("2026-10-15", "2026-09-15"),
+        ("2026-03-31", "2026-02-28"),
+        ("2024-03-31", "2024-02-29"),
+        ("2026-01-31", "2025-12-31"),
+    ],
+)
+async def test_initial_period_is_one_calendar_month(tmp_path, today, expected_from):
+    async with client_for(tmp_path) as client:
+        with patch("app.routes.datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime.fromisoformat(today).replace(tzinfo=UTC)
+            response = await client.get("/")
+            clock.now.assert_called_once_with(UTC)
+
+    assert response.status_code == 200
+    assert f'name="from" value="{expected_from}"' in response.text
+    assert f'name="to" value="{today}"' in response.text
+    assert 'data-months="1" aria-pressed="true"' in response.text
+    for months in (3, 6, 12):
+        assert f'data-months="{months}" aria-pressed="false"' in response.text
 
 
 async def test_sync_requires_key(tmp_path):

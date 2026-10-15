@@ -19,11 +19,13 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     today = datetime.now(UTC).date()
+    previous_month_end = today.replace(day=1) - timedelta(days=1)
+    default_from = previous_month_end.replace(day=min(today.day, previous_month_end.day))
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
-            "default_from": (today - timedelta(days=29)).isoformat(),
+            "default_from": default_from.isoformat(),
             "default_to": today.isoformat(),
             "sync_enabled": request.app.state.sync_service is not None,
             "mock_mode": request.app.state.settings.mock_mode,
