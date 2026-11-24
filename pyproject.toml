@@ -32,6 +32,11 @@ include = ["app*"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 
+[tool.pyright]
+include = ["app", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

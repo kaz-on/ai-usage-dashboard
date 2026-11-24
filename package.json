@@ -2,10 +2,12 @@
   "name": "ai-usage-dashboard-frontend",
   "private": true,
   "scripts": {
-    "typecheck": "tsc --project jsconfig.json"
+    "typecheck": "tsc --project jsconfig.json",
+    "typecheck:python": "pyright"
   },
   "devDependencies": {
     "chart.js": "4.5.1",
+    "pyright": "1.1.414",
     "typescript": "^5.9.2"
   }
 }

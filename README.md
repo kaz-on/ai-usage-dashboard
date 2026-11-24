@@ -152,7 +152,7 @@ docker compose cp dashboard:/data/backup.db ./dashboard-backup.db
 
 ## ローカル開発
 
-Python 3.12以上とNode.jsを使用します。Node.jsはフロントエンドの型チェック専用で、
+Python 3.12以上とNode.jsを使用します。Node.jsは静的チェック専用で、
 アプリケーションの実行やJavaScriptのビルドには使用しません。
 
 ```bash
@@ -168,11 +168,15 @@ MOCK_MODE=true DATABASE_PATH=./data/dashboard.db \
 ```bash
 .venv/bin/pytest -q
 .venv/bin/ruff check .
+npm run typecheck:python -- --pythonpath .venv/bin/python
 npm run typecheck
 node --check app/static/dashboard.js
 ```
 
 テストではモックHTTPレスポンスと決定的なデモデータを使用し、OpenAI APIへ通信しません。
+
+Pyrightは`npm ci`でインストールされます。`pyproject.toml`の`[tool.pyright]`で
+チェック対象を`app`と`tests`、対象のPythonバージョンを3.12に設定しています。
 
 GitHub Actionsでも、`main`へのpushとpull request時に同じテスト・静的チェックを実行します。CIにOpenAI APIキーは不要です。
 
