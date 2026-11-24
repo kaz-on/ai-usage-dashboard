@@ -59,12 +59,13 @@ class SyncService:
         run_id = self._start_run("metadata", start_time, end_time)
         try:
             projects = await self.client.get_projects()
-            api_keys: list[tuple[str, dict[str, Any]]] = []
+            api_keys_by_project: dict[str, list[dict[str, Any]]] = {}
             for project in projects:
+                if project.get("status") == "archived" or project.get("archived_at") is not None:
+                    continue
                 project_id = str(project["id"])
-                keys = await self.client.get_project_api_keys(project_id)
-                api_keys.extend((project_id, key) for key in keys)
-            record_count = self._replace_metadata(projects, api_keys)
+                api_keys_by_project[project_id] = await self.client.get_project_api_keys(project_id)
+            record_count = self._replace_metadata(projects, api_keys_by_project)
             self._finish_run(run_id, "success", record_count)
             return record_count
         except Exception as exc:
@@ -74,21 +75,29 @@ class SyncService:
     def _replace_metadata(
         self,
         projects: list[dict[str, Any]],
-        api_keys: list[tuple[str, dict[str, Any]]],
+        api_keys_by_project: dict[str, list[dict[str, Any]]],
     ) -> int:
         synced_at = int(time.time())
+        project_rows = [_project_row(project, synced_at) for project in projects]
+        project_ids = {row[0] for row in project_rows}
+        key_rows = [
+            _api_key_row(project_id, key, synced_at)
+            for project_id, keys in api_keys_by_project.items()
+            for key in keys
+        ]
         with self.database.connect() as connection:
-            connection.execute("DELETE FROM project_api_keys")
-            connection.execute("DELETE FROM projects")
+            connection.executemany(PROJECT_UPSERT, project_rows)
+            stored_projects = connection.execute("SELECT id FROM projects").fetchall()
             connection.executemany(
-                PROJECT_INSERT,
-                [_project_row(project, synced_at) for project in projects],
+                "DELETE FROM projects WHERE id = ?",
+                [(row["id"],) for row in stored_projects if row["id"] not in project_ids],
             )
             connection.executemany(
-                API_KEY_INSERT,
-                [_api_key_row(project_id, key, synced_at) for project_id, key in api_keys],
+                "DELETE FROM project_api_keys WHERE project_id = ?",
+                [(project_id,) for project_id in api_keys_by_project],
             )
-        return len(projects) + len(api_keys)
+            connection.executemany(API_KEY_INSERT, key_rows)
+        return len(project_rows) + len(key_rows)
 
     async def _sync_endpoint(self, endpoint, start_time, end_time, fetcher) -> int:
         run_id = self._start_run(endpoint, start_time, end_time)
@@ -244,9 +253,15 @@ INSERT INTO costs (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
-PROJECT_INSERT = """
+PROJECT_UPSERT = """
 INSERT INTO projects (id, name, status, archived_at, raw_json, synced_at)
 VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    status = excluded.status,
+    archived_at = excluded.archived_at,
+    raw_json = excluded.raw_json,
+    synced_at = excluded.synced_at
 """
 
 API_KEY_INSERT = """
