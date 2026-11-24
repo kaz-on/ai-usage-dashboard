@@ -19,15 +19,19 @@ COST_GROUP_BY = ["project_id", "line_item", "api_key_id"]
 class UsageClient(Protocol):
     async def get_projects(self) -> list[dict[str, Any]]:
         """Return all projects, including archived projects."""
+        ...
 
     async def get_project_api_keys(self, project_id: str) -> list[dict[str, Any]]:
         """Return all visible API keys in a project."""
+        ...
 
     async def get_completions(self, start_time: int, end_time: int) -> list[dict[str, Any]]:
         """Return all completion usage buckets in the requested interval."""
+        ...
 
     async def get_costs(self, start_time: int, end_time: int) -> list[dict[str, Any]]:
         """Return all cost buckets in the requested interval."""
+        ...
 
 
 class OpenAIUsageClient:
@@ -117,10 +121,8 @@ class OpenAIUsageClient:
     async def _request(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         for attempt in range(3):
             response = await self._client.get(path, params=params)
-            if response.status_code not in {429, 500, 502, 503, 504}:
+            if attempt == 2 or response.status_code not in {429, 500, 502, 503, 504}:
                 response.raise_for_status()
                 return response.json()
-            if attempt < 2:
-                await asyncio.sleep(2**attempt)
-        response.raise_for_status()
+            await asyncio.sleep(2**attempt)
         raise AssertionError("unreachable")

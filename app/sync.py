@@ -136,7 +136,10 @@ class SyncService:
                    VALUES (?, ?, 'running', ?, ?)""",
                 (endpoint, int(time.time()), start_time, end_time),
             )
-            return int(cursor.lastrowid)
+            run_id = cursor.lastrowid
+            if run_id is None:
+                raise RuntimeError("SQLite did not return an ID for the new sync run")
+            return run_id
 
     def _finish_run(
         self, run_id: int, status: str, count: int, error_message: str | None = None
